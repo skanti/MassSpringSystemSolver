@@ -140,7 +140,7 @@ public:
 
         glGenBuffers(1, &vao.vbo_x);
         glBindBuffer(GL_UNIFORM_BUFFER, vao.vbo_x);
-        glBufferData(GL_UNIFORM_BUFFER, n_nodes * sizeof(glm::mat4), NULL, GL_DYNAMIC_DRAW);
+        glBufferData(GL_UNIFORM_BUFFER, n_nodes * sizeof(glm::vec4), 0, GL_DYNAMIC_DRAW);
 
         glEnable(GL_LINE_SMOOTH);
         glLineWidth(5.0f);
@@ -152,20 +152,20 @@ public:
 
         glBindBufferBase(GL_UNIFORM_BUFFER, glGetUniformBlockIndex(mass_spring_program.get_id(), "nodes"),
                          vao.vbo_x);
-        glm::mat4 *node = (glm::mat4 *) glMapBufferRange(
-                GL_UNIFORM_BUFFER, 0, n_nodes * sizeof(glm::mat4), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+        glm::vec4 *node = (glm::vec4 *) glMapBufferRange(
+                GL_UNIFORM_BUFFER, 0, n_nodes * sizeof(glm::vec4), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
         for (sizet i = 0; i < n_nodes; i++) {
-            node[i] = glm::translate(glm::mat4(1), glm::vec3(nodes[i].x, nodes[i].y, 0.0f));
+            node[i] = glm::vec4(nodes[i].x, nodes[i].y, 0, 1);
         }
         glUnmapBuffer(GL_UNIFORM_BUFFER);
 
         glUniform1i(mass_spring_program.uniform("mode"), 0);
-        for (int node_index = 0; node_index < (int) n_nodes; node_index++) {
-            glVertexAttribI1i(0, node_index);
+        for (sizet i = 0; i < n_nodes; i++) {
+            glVertexAttribI1i(0, i);
             glDrawArrays(GL_TRIANGLE_FAN, 0, c1.N_VERTICES_FAN);
         }
-        glUniform1i(mass_spring_program.uniform("mode"), 1);
-        glDrawArrays(GL_LINES, 0, 2);
+        //glUniform1i(mass_spring_program.uniform("mode"), 1);
+        //glDrawArrays(GL_LINES, 0, 2);
     };
 
     void move() { return; };
@@ -200,7 +200,7 @@ public:
     Earth()
             : World(),
               mss(),
-              draw_unit_command((Drawable *) &mss) {
+              draw_unit_command((Drawable * ) & mss) {
 
     };
 

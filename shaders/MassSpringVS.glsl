@@ -3,15 +3,16 @@
 #define MODE_NODES 0
 #define MODE_SPRINGS 1
 
-const int N_MAX_NODES = 100;
-const int N_MAX_SPRINGS = 100;
+const int N_MAX_NODES = 50;
+const int N_MAX_SPRINGS = 50;
 const int N_MAX_SHAPE_VERTICES = 75;
 
 uniform int mode;
 
+// 16 byte allignment because of std140 layout style
 layout( std140 ) uniform nodes {
     struct Node {
-        mat4 ModelMatrix;
+        vec4 x;
     } node[N_MAX_NODES];
 };
 
@@ -35,10 +36,8 @@ void main()
 {
     mat4 VPMatrix = ProjectionMatrix*ViewMatrix;
     if (mode == MODE_NODES) {
-        mat4 MVPMatrix = VPMatrix*node[node_index].ModelMatrix;
-        //vec2 pos = shape[gl_VertexID] + nodev[node_index];
-        vec2 pos = shape[gl_VertexID];
-        gl_Position = MVPMatrix*vec4(pos, 0.0, 1.0);
+        vec2 pos = shape[gl_VertexID] + node[node_index].x.xy;
+        gl_Position = VPMatrix*vec4(pos, 0.0, 1.0);
     } else if (mode == MODE_SPRINGS) {
         gl_Position = VPMatrix*vec4(line1[gl_VertexID], 0.0, 1.0);
     }
