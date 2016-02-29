@@ -45,7 +45,7 @@ namespace lb {
     };
 
     struct VAOMassSpring {
-        GLuint vao_id, vbo_x, vbo_alt;
+        GLuint vao_id, vbo_node, vbo_springs;
     };
 
 }

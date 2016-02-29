@@ -36,10 +36,10 @@ namespace lb {
                 throw std::runtime_error("glewInit failed\n");
 
             // print out some info about the graphics drivers
-            std::cout << "OpenGL version: " << glGetString(GL_VERSION) << std::endl;
-            std::cout << "GLSL version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
             std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;
             std::cout << "WindowManager: " << glGetString(GL_RENDERER) << std::endl;
+            std::cout << "OpenGL version: " << glGetString(GL_VERSION) << std::endl;
+            std::cout << "GLSL version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 
             // make sure OpenGL version 4.1 API is available
             if (!GLEW_VERSION_4_1)

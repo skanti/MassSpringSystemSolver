@@ -138,20 +138,25 @@ public:
         glUniform4fv(mass_spring_program.uniform("color"), 1, green.data());
         glUniform2fv(mass_spring_program.uniform("shape"), c1.N_VERTICES_FAN, c1.vertices_fan.data());
 
-        glGenBuffers(1, &vao.vbo_x);
-        glBindBuffer(GL_UNIFORM_BUFFER, vao.vbo_x);
+        glGenBuffers(1, &vao.vbo_node);
+        glBindBuffer(GL_UNIFORM_BUFFER, vao.vbo_node);
         glBufferData(GL_UNIFORM_BUFFER, n_nodes * sizeof(glm::vec4), 0, GL_DYNAMIC_DRAW);
+        glUniformBlockBinding(mass_spring_program.get_id(),
+                              glGetUniformBlockIndex(mass_spring_program.get_id(), "nodes"), 0);
 
-        glEnable(GL_LINE_SMOOTH);
-        glLineWidth(5.0f);
+        glGenBuffers(1, &vao.vbo_springs);
+        glBindBuffer(GL_UNIFORM_BUFFER, vao.vbo_springs);
+        glBufferData(GL_UNIFORM_BUFFER, n_springs * sizeof(glm::uvec4), 0, GL_DYNAMIC_DRAW);
+        glUniformBlockBinding(mass_spring_program.get_id(),
+                              glGetUniformBlockIndex(mass_spring_program.get_id(), "springs"), 1);
     };
 
     void draw() {
         glUseProgram(mass_spring_program.get_id());
         glBindVertexArray(vao.vao_id);
 
-        glBindBufferBase(GL_UNIFORM_BUFFER, glGetUniformBlockIndex(mass_spring_program.get_id(), "nodes"),
-                         vao.vbo_x);
+        // nodes
+        glBindBufferBase(GL_UNIFORM_BUFFER, 0, vao.vbo_node);
         glm::vec4 *node = (glm::vec4 *) glMapBufferRange(
                 GL_UNIFORM_BUFFER, 0, n_nodes * sizeof(glm::vec4), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
         for (sizet i = 0; i < n_nodes; i++) {
@@ -164,8 +169,27 @@ public:
             glVertexAttribI1i(0, i);
             glDrawArrays(GL_TRIANGLE_FAN, 0, c1.N_VERTICES_FAN);
         }
-        //glUniform1i(mass_spring_program.uniform("mode"), 1);
-        //glDrawArrays(GL_LINES, 0, 2);
+
+        // springs
+        glBindBufferBase(GL_UNIFORM_BUFFER, 1, vao.vbo_springs);
+        glm::uvec4 *spring = (glm::uvec4 *) glMapBufferRange(
+                GL_UNIFORM_BUFFER, 0, n_springs * sizeof(glm::uvec4), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+        int j = 0;
+        for (auto &s : springs) {
+            spring[j] = glm::uvec4(s.first.first, s.first.second, 0, 1);
+            j++;
+        }
+        glUnmapBuffer(GL_UNIFORM_BUFFER);
+
+        glUniform1i(mass_spring_program.uniform("mode"), 1);
+        glEnable(GL_LINE_SMOOTH);
+        glLineWidth(10.0f);
+        for (sizet i = 0; i < n_springs; i++) {
+            glVertexAttribI1ui(1, i);
+            glDrawArrays(GL_LINES, 0, 2);
+        }
+        glDisable(GL_LINE_SMOOTH);
+
     };
 
     void move() { return; };
@@ -200,7 +224,7 @@ public:
     Earth()
             : World(),
               mss(),
-              draw_unit_command((Drawable * ) & mss) {
+              draw_unit_command((Drawable *) &mss) {
 
     };
 
