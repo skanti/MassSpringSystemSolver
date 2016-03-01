@@ -90,7 +90,7 @@ namespace lb {
         }
 
         static void clear_screen() {
-            glClearColor(0.9, 0.9, 0.9f, 1); // black
+            glClearColor(0.7, 0.7, 0.7f, 1);
             glClear(GL_COLOR_BUFFER_BIT);
         }
 

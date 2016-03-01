@@ -1,21 +1,15 @@
 #include "World.h"
 #include "Engine.h"
 #include "Movable.h"
-#include <boost/numeric/ublas/matrix.hpp>
-#include <boost/numeric/ublas/matrix_sparse.hpp>
-#include <boost/numeric/ublas/io.hpp>
 #include <regex>
 #include <unordered_map>
-#include <boost/algorithm/string.hpp>
-#include <functional>
-
+#include <armadillo>
 
 #define BOOST_DISABLE_ASSERTS 1
 
 float DT = 0.001;
 
 using namespace lb;
-using namespace boost::numeric;
 
 class Command {
 public:
@@ -24,13 +18,17 @@ public:
 
 class MassSpringSystem : public Drawable, public Movable {
 public:
+    typedef unsigned int uint;
+
     struct Spring {
-        double k, rt;
+        double k, d;
     };
     struct Node {
-        double x, y, m; // x-pos, y-pos, mass
+        arma::Col<double> x;
+        arma::Col<double> v;
+        arma::Col<double> f;
+        double m;
         bool fix;
-        std::deque<Spring *> s;
     };
 
     struct HashPair {
@@ -41,6 +39,7 @@ public:
         }
     };
 
+    // symmetric unordered map
     class SUM : public std::unordered_map<std::pair<sizet, sizet>, Spring, HashPair> {
     public:
         bool stack(std::pair<sizet, sizet> i, Spring s) {
@@ -76,6 +75,7 @@ public:
             : vao(),
               c1(0, 0, 0.03f, 20) {
         load_file("/Users/amon/grive/development/springs/data/mesh1.msh");
+        init_nodes_and_springs();
         n_nodes = nodes.size();
         n_springs = springs.size();
         init_drawable();
@@ -95,7 +95,9 @@ public:
                     int k;
                     double x, y;
                     issf >> k >> x >> y;
-                    nodes[k - 1] = {x, y, 1.0, false};
+                    arma::vec xx = {x, y};
+                    arma::vec z = {0, 0};
+                    nodes[k - 1] = {xx, z, z, 1.0, false};
                 }
             } else if (line == std::string("$Elements")) {
                 std::getline(infile, line);
@@ -109,21 +111,20 @@ public:
                     if (type == 2) {
                         sizet phase, tag, geo, n1, n2, n3;
                         isse >> phase >> tag >> geo >> n1 >> n2 >> n3;
-                        if (springs.stack({n1 - 1, n2 - 1}, {1.0, 1.0})) {
-                            nodes[n1 - 1].s.push_back(&springs.get({n1 - 1, n2 - 1}));
-                            nodes[n2 - 1].s.push_back(&springs.get({n1 - 1, n2 - 1}));
-                        }
-                        if (springs.stack({n1 - 1, n3 - 1}, {1.0, 1.0})) {
-                            nodes[n1 - 1].s.push_back(&springs.get({n1 - 1, n3 - 1}));
-                            nodes[n3 - 1].s.push_back(&springs.get({n1 - 1, n3 - 1}));
-                        }
-                        if (springs.stack({n2 - 1, n3 - 1}, {1.0, 1.0})) {
-                            nodes[n2 - 1].s.push_back(&springs.get({n2 - 1, n3 - 1}));
-                            nodes[n3 - 1].s.push_back(&springs.get({n2 - 1, n3 - 1}));
-                        }
+                        springs.stack({n1 - 1, n2 - 1}, {1.0, 1.0});
+                        springs.stack({n1 - 1, n3 - 1}, {1.0, 1.0});
+                        springs.stack({n2 - 1, n3 - 1}, {1.0, 1.0});
                     }
                 }
             }
+        }
+    }
+
+    void init_nodes_and_springs() {
+        for (auto &s : springs) {
+            const arma::vec dx = nodes[s.first.second].x - nodes[s.first.first].x;
+            const double dl = arma::norm(dx, 2);
+            s.second.d = dl;
         }
     }
 
@@ -160,7 +161,7 @@ public:
         glm::vec4 *node = (glm::vec4 *) glMapBufferRange(
                 GL_UNIFORM_BUFFER, 0, n_nodes * sizeof(glm::vec4), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
         for (sizet i = 0; i < n_nodes; i++) {
-            node[i] = glm::vec4(nodes[i].x, nodes[i].y, 0, 1);
+            node[i] = glm::vec4(nodes[i].x[0], nodes[i].x[1], 0, 1);
         }
         glUnmapBuffer(GL_UNIFORM_BUFFER);
 
@@ -182,8 +183,8 @@ public:
         glUnmapBuffer(GL_UNIFORM_BUFFER);
 
         glUniform1i(mass_spring_program.uniform("mode"), 1);
+        glLineWidth(10.0);
         glEnable(GL_LINE_SMOOTH);
-        glLineWidth(10.0f);
         for (sizet i = 0; i < n_springs; i++) {
             glVertexAttribI1ui(1, i);
             glDrawArrays(GL_LINES, 0, 2);
@@ -192,7 +193,29 @@ public:
 
     };
 
-    void move() { return; };
+    void move() {
+        const double dt = 0.01;
+        for (auto &n : nodes)
+            n.second.f *= 0.0;
+
+        for (auto &s : springs) {
+            const arma::vec dx = nodes[s.first.second].x - nodes[s.first.first].x;
+            const double dl = arma::norm(dx, 2);
+            const arma::vec f = (dl - s.second.d) * s.second.k * dx / dl;
+
+            if (!nodes[s.first.first].fix)
+                nodes[s.first.first].f += f;
+            if (!nodes[s.first.second].fix)
+                nodes[s.first.second].f -= f;
+        }
+        for (auto &n : nodes) {
+            if (!n.second.fix) {
+                n.second.v += n.second.f / n.second.m * dt;
+                n.second.v *= 0.99;
+                n.second.x += n.second.v * dt;
+            }
+        }
+    };
 
 private:
     VAOMassSpring vao;
@@ -205,40 +228,22 @@ private:
     SUM springs;
 };
 
-class DrawUnitCommand : public Command {
-public:
-    DrawUnitCommand(Drawable *unit) : unit(unit) {
-    }
-
-    void execute() {
-        unit->draw();
-    }
-
-private:
-    Drawable *unit;
-};
-
-
 class Earth : public World {
 public:
     Earth()
             : World(),
-              mss(),
-              draw_unit_command((Drawable *) &mss) {
-
-    };
+              mss() { };
 
     void advance(unsigned int &iteration_counter, long long int ms_per_frame) {
-        return;
+        mss.move();
     }
 
     void draw() {
-        draw_unit_command.execute();
+        mss.draw();
     }
 
 private:
     MassSpringSystem mss;
-    DrawUnitCommand draw_unit_command;
 
 };
 

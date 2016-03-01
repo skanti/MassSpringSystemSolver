@@ -5,10 +5,10 @@ project(springs CXX)
 set(CMAKE_CXX_COMPILER
         "/usr/local/bin/c++-5")
 
-find_package(Boost
-        1.59
-        REQUIRED             # Fail with error if Boost is not found
+find_package(Armadillo
+        REQUIRED             # Fail with error if not found
         )
+
 
 find_package(freetype
         REQUIRED)
@@ -43,6 +43,6 @@ set(BOX2D_DIR /Users/amon/grive/development/Box2D/Box2D/)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${FREETYPE_DIR} ${BOX2D_DIR} ${BOX2D_DIR}/Box2D)
 add_executable(springs test/test.cpp ${SOURCE_FILES})
 LINK_DIRECTORIES(${BOX2D_DIR}/Build)
-target_link_libraries(springs Glew glfw3 freetype)
+target_link_libraries(springs Glew glfw3 freetype armadillo)
 
 
