@@ -74,7 +74,7 @@ public:
     MassSpringSystem()
             : vao(),
               c1(0, 0, 0.03f, 20) {
-        load_file("/Users/amon/grive/development/springs/data/mesh1.msh");
+        load_file("/Users/amon/grive/development/springs/data/mesh.msh");
         init_nodes_and_springs();
         n_nodes = nodes.size();
         n_springs = springs.size();
@@ -82,6 +82,7 @@ public:
     }
 
     void load_file(std::string file) {
+        const uint tag_phase_fix = 12;
         std::ifstream infile(file);
         std::string line;
         while (std::getline(infile, line)) {
@@ -100,6 +101,7 @@ public:
                     nodes[k - 1] = {xx, z, z, 1.0, false};
                 }
             } else if (line == std::string("$Elements")) {
+
                 std::getline(infile, line);
                 std::istringstream issn(line);
                 issn >> n_springs;
@@ -108,12 +110,20 @@ public:
                     std::istringstream isse(line);
                     int k, type;
                     isse >> k >> type;
+                    if (type == 1) {
+                        sizet phase, tag, ent, n1, n2;
+                        isse >> phase >> tag >> ent >> n1 >> n2;
+                        if (tag == tag_phase_fix) {
+                            nodes[n1 - 1].fix = true;
+                            nodes[n2 - 1].fix = true;
+                        }
+                    }
                     if (type == 2) {
-                        sizet phase, tag, geo, n1, n2, n3;
-                        isse >> phase >> tag >> geo >> n1 >> n2 >> n3;
-                        springs.stack({n1 - 1, n2 - 1}, {1.0, 1.0});
-                        springs.stack({n1 - 1, n3 - 1}, {1.0, 1.0});
-                        springs.stack({n2 - 1, n3 - 1}, {1.0, 1.0});
+                        sizet phase, tag, ent, n1, n2, n3;
+                        isse >> phase >> tag >> ent >> n1 >> n2 >> n3;
+                        springs.stack({n1 - 1, n2 - 1}, {400.0, 1.0});
+                        springs.stack({n1 - 1, n3 - 1}, {400.0, 1.0});
+                        springs.stack({n2 - 1, n3 - 1}, {400.0, 1.0});
                     }
                 }
             }
@@ -195,6 +205,7 @@ public:
 
     void move() {
         const double dt = 0.01;
+        const arma::vec f_g = {0.0, -9.81};
         for (auto &n : nodes)
             n.second.f *= 0.0;
 
@@ -203,15 +214,12 @@ public:
             const double dl = arma::norm(dx, 2);
             const arma::vec f = (dl - s.second.d) * s.second.k * dx / dl;
 
-            if (!nodes[s.first.first].fix)
-                nodes[s.first.first].f += f;
-            if (!nodes[s.first.second].fix)
-                nodes[s.first.second].f -= f;
+            nodes[s.first.first].f += f;
+            nodes[s.first.second].f -= f;
         }
         for (auto &n : nodes) {
             if (!n.second.fix) {
-                n.second.v += n.second.f / n.second.m * dt;
-                n.second.v *= 0.99;
+                n.second.v += (-0.5 * n.second.v + n.second.f / n.second.m + f_g) * dt;
                 n.second.x += n.second.v * dt;
             }
         }
