@@ -1,40 +1,40 @@
 #include "MassSpringSystem.h"
 #include "Visualization.h"
-#include "ImageManager.h"
+#include "Solvers.h"
 
-MassSpringSystem::MassSpringSystem() {
+const int n_springs_per_node = 8;
+
+MassSpringSystem::MassSpringSystem() : nodes(30), springs(30 * 8) {
     load_file("/Users/amon/grive/development/Springs2D/data/mesh.msh");
-    init_nodes_and_springs();
-    n_nodes = nodes.size();
-    n_springs = springs.size();
-    init_shape();
-    init_instances();
-    init_drawable();
+    //init_shape();
+    //init_instances();
+    //init_drawable();
 }
 
 void MassSpringSystem::load_file(std::string file) {
-    const int tag_phase_fix = 12;
     std::ifstream infile(file);
     std::string line;
     while (std::getline(infile, line)) {
         if (line == std::string("$Nodes")) {
             std::getline(infile, line);
             std::istringstream issn(line);
+            int n_nodes;
             issn >> n_nodes;
             for (int i = 0; i < n_nodes; i++) {
                 std::getline(infile, line);
                 std::istringstream issf(line);
                 int k;
                 double x, y;
+                // -> reading from .msh file: k = index, x = pos_x, y = pos_y
                 issf >> k >> x >> y;
-                arma::vec xx = {x, y};
-                arma::vec z = {0, 0};
-                nodes[k - 1] = {xx, z, z, 1.0, false};
+                nodes.push_back_free(x, y, 0, 0, 1.0, 1.0, k - 1);
             }
         } else if (line == std::string("$Elements")) {
-
+            const int tag_phase_fix = 12;
+            int i_spring = 0;
             std::getline(infile, line);
             std::istringstream issn(line);
+            int n_springs;
             issn >> n_springs;
             for (int i = 0; i < n_springs; i++) {
                 std::getline(infile, line);
@@ -45,40 +45,37 @@ void MassSpringSystem::load_file(std::string file) {
                     int phase, tag, ent, n1, n2;
                     isse >> phase >> tag >> ent >> n1 >> n2;
                     if (tag == tag_phase_fix) {
-                        nodes[n1 - 1].fix = true;
-                        nodes[n2 - 1].fix = true;
+                        int nn1 = nodes.key[n1 - 1];
+                        int nn2 = nodes.key[n2 - 1];
+                        nodes.transfer_free2fix(nn1);
+                        nodes.transfer_free2fix(nn2);
                     }
                 }
                 if (type == 2) {
                     int phase, tag, ent, n1, n2, n3;
                     isse >> phase >> tag >> ent >> n1 >> n2 >> n3;
-                    springs.stack({n1 - 1, n2 - 1}, {250.0, 1.0});
-                    springs.stack({n1 - 1, n3 - 1}, {250.0, 1.0});
-                    springs.stack({n2 - 1, n3 - 1}, {250.0, 1.0});
+                    int nn1 = nodes.key[n1 - 1];
+                    int nn2 = nodes.key[n2 - 1];
+                    int nn3 = nodes.key[n3 - 1];
+                    springs.push_back(nn1, nn2, 1.0, i_spring++);
+                    springs.push_back(nn1, nn3, 1.0, i_spring++);
+                    springs.push_back(nn2, nn3, 1.0, i_spring++);
                 }
             }
         }
     }
 }
 
-void MassSpringSystem::init_nodes_and_springs() {
-    for (auto &s : springs) {
-        const arma::vec dx = nodes[s.first.second].x - nodes[s.first.first].x;
-        const double dl = arma::norm(dx, 2);
-        s.second.d = dl;
-    }
-}
 
 void MassSpringSystem::init_shape() {
     vao.model_matrix = glm::scale(glm::mat4(1), glm::vec3(0.5, 0.5, 1.0));
     vao.shape = ga::Shape::make_circle(0.01);
-    vao.n_springs = n_springs;
-    vao.s_ab.resize(n_springs * 2);
+    vao.s_ab.resize(springs.n_size * 2);
 }
 
 void MassSpringSystem::init_instances() {
-    vao.n_instances = n_nodes;
-    vao.p_xy.resize(2 * n_nodes);
+    vao.n_instances = nodes.n_size;
+    vao.p_xy.resize(2 * nodes.n_size);
 }
 
 
@@ -121,6 +118,7 @@ void MassSpringSystem::init_drawable() {
 };
 
 void MassSpringSystem::draw() {
+    /*
     glUseProgram(ga::Visualization::mass_spring_program.get_id());
     glBindVertexArray(vao.vao_id);
 
@@ -139,41 +137,9 @@ void MassSpringSystem::draw() {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * vao.n_springs * sizeof(GLuint), vao.s_ab.data(), GL_DYNAMIC_DRAW);
     glDrawElements(GL_LINES, 2 * vao.n_springs, GL_UNSIGNED_INT, 0);
     // <-
-
+    */
 };
 
 void MassSpringSystem::move() {
-    /*
-    const double dt = 0.01;
-    const arma::vec f_g = {0.0, -9.81};
-    for (auto &n : nodes)
-        n.second.f *= 0.0;
-
-    for (auto &s : springs) {
-        const arma::vec dx = nodes[s.first.second].x - nodes[s.first.first].x;
-        const double dl = arma::norm(dx, 2);
-        const arma::vec f = (dl - s.second.d) * s.second.k * dx / dl;
-
-        nodes[s.first.first].f += f;
-        nodes[s.first.second].f -= f;
-    }
-    for (auto &n : nodes) {
-        if (!n.second.fix) {
-            n.second.v += (-0.5 * n.second.v + n.second.f / n.second.m + f_g) * dt;
-            n.second.x += n.second.v * dt;
-        }
-    }
-    */
-
-    int i_spring = 0;
-    for (auto &s : springs) {
-        vao.s_ab[i_spring++] = static_cast<unsigned int> (s.first.first);
-        vao.s_ab[i_spring++] = static_cast<unsigned int> (s.first.second);
-    }
-    int i_node = 0;
-    for (auto &n : nodes) {
-        vao.p_xy[i_node++] = (float) (n.second.x[0]);
-        vao.p_xy[i_node++] = (float) (n.second.x[1]);
-    }
 
 };
