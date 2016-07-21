@@ -1,48 +1,28 @@
-cmake_minimum_required(VERSION 3.3)
-project(springs CXX)
+cmake_minimum_required(VERSION 3.5)
+project(Springs2D CXX)
 
+set(CMAKE_CXX_COMPILER "/usr/local/bin/c++-6")
 
-set(CMAKE_CXX_COMPILER
-        "/usr/local/bin/c++-5")
+set(OPTIMIZATION_FLAGS "-O3 -fomit-frame-pointer -ffast-math -march=native")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -fopenmp -std=c++14 -framework OpenGL")
 
-find_package(Armadillo
-        REQUIRED             # Fail with error if not found
-        )
+set(SOURCE_FILES_CPP
+        src/main.cpp
+        src/Earth.cpp
+        src/MassSpringSystem.cpp)
 
+set(SOURCE_FILES_H src/Earth.h src/MassSpringSystem.h)
 
-find_package(freetype
-        REQUIRED)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
 
-SET(OPTIMIZATION_FLAGS "-O3 -fomit-frame-pointer -march=native")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OPTIMIZATION_FLAGS} -Wall -fopenmp -std=c++11 -framework OpenGL")
+set(GAMEFRAMEWORK_DIR /Users/amon/grive/development/GameFramework)
+set(FREETYPE_DIR /usr/local/Cellar/freetype/2.6.3)
+set(ARMADILLO_DIR /usr/local/Cellar/armadillo/7.200.2)
 
+include_directories(${GAMEFRAMEWORK_DIR}/src/cpp ${FREETYPE_DIR}/include/freetype2 ${ARMADILLO_DIR}/include)
+link_directories(${GAMEFRAMEWORK_DIR}/build ${ARMADILLO_DIR}/lib)
+add_executable(Springs2D ${SOURCE_FILES_CPP} ${SOURCE_FILES_H})
+target_link_libraries(Springs2D GameFramework Glew glfw3 freetype armadillo png)
 
-set(SOURCE_FILES
-        shaders/TextureVS.glsl
-        shaders/TextureFS.glsl
-        shaders/PolygonMonoColorVS.glsl
-        shaders/PolygonMonoColorFS.glsl
-        shaders/MassSpringFS.glsl
-        shaders/MassSpringVS.glsl
-        CMakeLists.txt
-        Engine.h
-        GLSLProgram.h
-        Shader.h
-        World.h
-        Types.h
-        Visualization.h
-        WindowManager.h
-        VertexObject.h
-        Shape.h Drawable.h SolidObject.h)
-
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build")
-#set_target_properties(springs PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build")
-
-set(FREETYPE_DIR /usr/local/Cellar/freetype/2.6_1/include/freetype2)
-set(BOX2D_DIR /Users/amon/grive/development/Box2D/Box2D/)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${FREETYPE_DIR} ${BOX2D_DIR} ${BOX2D_DIR}/Box2D)
-add_executable(springs test/test.cpp ${SOURCE_FILES})
-LINK_DIRECTORIES(${BOX2D_DIR}/Build)
-target_link_libraries(springs Glew glfw3 freetype armadillo)
 
 
