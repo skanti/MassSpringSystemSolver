@@ -9,7 +9,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -fopenmp -std=c++14 -framework Ope
 set(SOURCE_FILES_CPP
         src/main.cpp
         src/Earth.cpp
-        src/Solvers.cpp
+        src/Solver.cpp
         src/MassSpringSystem.cpp)
 
 set(SOURCE_FILES_H
@@ -18,7 +18,8 @@ set(SOURCE_FILES_H
         src/Nodes.h
         src/Springs.h
         src/VecVec.h
-        src/Solvers.h src/SM.h)
+        src/Solver.h
+        src/SOM.h)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
 

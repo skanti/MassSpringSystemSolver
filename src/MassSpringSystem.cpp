@@ -1,14 +1,25 @@
 #include "MassSpringSystem.h"
 #include "Visualization.h"
-#include "Solvers.h"
+#include "Solver.h"
 
 const int n_springs_per_node = 8;
 
 MassSpringSystem::MassSpringSystem() : nodes(30), springs(30 * 8) {
     load_file("/Users/amon/grive/development/Springs2D/data/mesh.msh");
-    //init_shape();
-    //init_instances();
-    //init_drawable();
+    int i_spring = 0;
+    for (auto &m : sm) {
+        springs.push_back(m.first.first, m.first.second, 1.0, 0, i_spring++);
+    }
+    Springs::set_deq_by_given_state(nodes.p_x.data(), nodes.p_y.data(), springs.a.data(), springs.b.data(),
+                                    springs.d_eq.data(), springs.n_size);
+    /*
+    for (int i = 0; i < springs.n_size; i++) {
+        std::cout << springs.a[i] << " " << springs.b[i] << " " << springs.d_eq[i] << std::endl;
+    }
+    */
+    init_shape();
+    init_instances();
+    init_drawable();
 }
 
 void MassSpringSystem::load_file(std::string file) {
@@ -47,8 +58,8 @@ void MassSpringSystem::load_file(std::string file) {
                     if (tag == tag_phase_fix) {
                         int nn1 = nodes.key[n1 - 1];
                         int nn2 = nodes.key[n2 - 1];
-                        nodes.transfer_free2fix(nn1);
-                        nodes.transfer_free2fix(nn2);
+                        //nodes.transfer_free2fix(nn1);
+                        //nodes.transfer_free2fix(nn2);
                     }
                 }
                 if (type == 2) {
@@ -57,9 +68,9 @@ void MassSpringSystem::load_file(std::string file) {
                     int nn1 = nodes.key[n1 - 1];
                     int nn2 = nodes.key[n2 - 1];
                     int nn3 = nodes.key[n3 - 1];
-                    springs.push_back(nn1, nn2, 1.0, i_spring++);
-                    springs.push_back(nn1, nn3, 1.0, i_spring++);
-                    springs.push_back(nn2, nn3, 1.0, i_spring++);
+                    sm.stack({nn1, nn2}, i_spring++);
+                    sm.stack({nn1, nn3}, i_spring++);
+                    sm.stack({nn2, nn3}, i_spring++);
                 }
             }
         }
@@ -69,13 +80,15 @@ void MassSpringSystem::load_file(std::string file) {
 
 void MassSpringSystem::init_shape() {
     vao.model_matrix = glm::scale(glm::mat4(1), glm::vec3(0.5, 0.5, 1.0));
-    vao.shape = ga::Shape::make_circle(0.01);
-    vao.s_ab.resize(springs.n_size * 2);
+    vao.shape = ga::Shape::make_circle(0.02);
 }
 
 void MassSpringSystem::init_instances() {
     vao.n_instances = nodes.n_size;
     vao.p_xy.resize(2 * nodes.n_size);
+
+    vao.n_springs = springs.n_size;
+    vao.s_ab.resize(2 * springs.n_size);
 }
 
 
@@ -90,7 +103,7 @@ void MassSpringSystem::init_drawable() {
                        &ga::Visualization::view_window[0][0]);
     glUniformMatrix4fv(ga::Visualization::mass_spring_program.uniform("ProjectionMatrix"), 1, GL_FALSE,
                        &ga::Visualization::projection_window[0][0]);
-    std::vector<float> color{{0.2f, 0.2f, 0.8f, 0.6f}};
+    std::vector<float> color{{0.2f, 0.2f, 0.8f, 0.8f}};
     glUniform4fv(ga::Visualization::mass_spring_program.uniform("color"), 1, color.data());
 
     //glUniform2fv(ga::Visualization::mass_spring_program.uniform("pos"), vao.n_instances, vao.p_xy.data());
@@ -118,7 +131,6 @@ void MassSpringSystem::init_drawable() {
 };
 
 void MassSpringSystem::draw() {
-    /*
     glUseProgram(ga::Visualization::mass_spring_program.get_id());
     glBindVertexArray(vao.vao_id);
 
@@ -137,9 +149,31 @@ void MassSpringSystem::draw() {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * vao.n_springs * sizeof(GLuint), vao.s_ab.data(), GL_DYNAMIC_DRAW);
     glDrawElements(GL_LINES, 2 * vao.n_springs, GL_UNSIGNED_INT, 0);
     // <-
-    */
+};
+
+void MassSpringSystem::gather() {
+    for (int i = 0; i < springs.n_size; i++) {
+        vao.s_ab[i * 2] = static_cast<unsigned int>(springs.a[i]);
+        vao.s_ab[i * 2 + 1] = static_cast<unsigned int>(springs.b[i]);
+    }
+
+    for (int i = 0; i < nodes.n_size; i++) {
+        vao.p_xy[i * 2] = static_cast<float>(nodes.p_x[i]);
+        vao.p_xy[i * 2 + 1] = static_cast<float>(nodes.p_y[i]);
+    }
 };
 
 void MassSpringSystem::move() {
-
-};
+    double dt = 1e-3;
+    for (int i = 0; i < nodes.n_size_free; i++) {
+        nodes.f_x[i] = 0;
+        nodes.f_y[i] = -9.81;
+    }
+    /*
+    Solver::mss_force(nodes.p_x.data(), nodes.p_y.data(), nodes.f_x.data(), nodes.f_y.data(), nodes.n_size_fix,
+                      springs.a.data(), springs.b.data(), springs.k.data(), springs.d_eq.data(), springs.n_size);
+    */
+    Solver::euler_forward(nodes.p_x.data(), nodes.p_y.data(), nodes.v_x.data(), nodes.v_y.data(), nodes.f_x.data(),
+                          nodes.f_y.data(), nodes.m.data(), dt, nodes.n_size_free);
+    gather();
+}

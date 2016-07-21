@@ -7,7 +7,7 @@
 #include "Nodes.h"
 #include "Springs.h"
 #include <utility>
-#include <map>
+#include "SOM.h"
 
 class MassSpringSystem : public ga::Drawable {
 public:
@@ -25,11 +25,13 @@ public:
 
     void move();
 
+    void gather();
+
 private:
     Nodes nodes;
     Springs springs;
     ga::VAOMassSpring vao;
-    std::map<std::pair<int, int>, int> sm;
+    SOM sm;
 
 };
 
