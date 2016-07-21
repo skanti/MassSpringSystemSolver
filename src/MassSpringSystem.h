@@ -31,7 +31,7 @@ public:
     };
 
     // symmetric unordered map
-    class SUM : public std::unordered_map<std::pair<int, int>, Spring, HashPair> {
+    class SymUnMap : public std::unordered_map<std::pair<int, int>, Spring, HashPair> {
     public:
         bool stack(std::pair<int, int> i, Spring s) {
             std::pair<int, int> p;
@@ -70,6 +70,8 @@ public:
 
     void init_shape();
 
+    void init_instances();
+
     void init_drawable();
 
     void draw();
@@ -79,11 +81,10 @@ public:
 private:
     ga::VAOMassSpring vao;
 
-private:
     int n_nodes;
     int n_springs;
     std::unordered_map<int, Node> nodes;
-    SUM springs;
+    SymUnMap springs;
 };
 
 
