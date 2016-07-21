@@ -12,8 +12,10 @@ void Solver::mss_force(double *p_x, double *p_y, double *f_x, double *f_y, int n
         double dd = d_eq[i] - d;
         double dxn = dx / d;
         double dyn = dy / d;
-        f_x[i] += dxn * k[i] * dd;
-        f_y[i] += dyn * k[i] * dd;
+        f_x[a_s[i]] += dxn * k[i] * dd;
+        f_y[a_s[i]] += dyn * k[i] * dd;
+        f_x[b_s[i]] -= dxn * k[i] * dd;
+        f_y[b_s[i]] -= dyn * k[i] * dd;
     }
 }
 

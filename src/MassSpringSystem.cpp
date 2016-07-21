@@ -169,10 +169,10 @@ void MassSpringSystem::move() {
         nodes.f_x[i] = 0;
         nodes.f_y[i] = -9.81;
     }
-    /*
+
     Solver::mss_force(nodes.p_x.data(), nodes.p_y.data(), nodes.f_x.data(), nodes.f_y.data(), nodes.n_size_fix,
                       springs.a.data(), springs.b.data(), springs.k.data(), springs.d_eq.data(), springs.n_size);
-    */
+
     Solver::euler_forward(nodes.p_x.data(), nodes.p_y.data(), nodes.v_x.data(), nodes.v_y.data(), nodes.f_x.data(),
                           nodes.f_y.data(), nodes.m.data(), dt, nodes.n_size_free);
     gather();
