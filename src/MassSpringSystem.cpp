@@ -70,10 +70,10 @@ void MassSpringSystem::init_nodes_and_springs() {
 }
 
 void MassSpringSystem::init_shape() {
+    vao.model_matrix = glm::scale(glm::mat4(1), glm::vec3(0.5, 0.5, 1.0));
     vao.shape = ga::Shape::make_circle(0.01);
     vao.n_springs = n_springs;
     vao.s_ab.resize(n_springs * 2);
-    vao.model_matrix = glm::scale(glm::mat4(1), glm::vec3(0.5, 0.5, 1.0));
 }
 
 void MassSpringSystem::init_instances() {
@@ -96,7 +96,7 @@ void MassSpringSystem::init_drawable() {
     std::vector<float> color{{0.2f, 0.2f, 0.8f, 0.6f}};
     glUniform4fv(ga::Visualization::mass_spring_program.uniform("color"), 1, color.data());
 
-    glUniform2fv(ga::Visualization::mass_spring_program.uniform("pos"), vao.n_instances, vao.p_xy.data());
+    //glUniform2fv(ga::Visualization::mass_spring_program.uniform("pos"), vao.n_instances, vao.p_xy.data());
 
     glGenBuffers(1, &vao.vbo_shape_id);
     glBindBuffer(GL_ARRAY_BUFFER, vao.vbo_shape_id);
@@ -105,12 +105,18 @@ void MassSpringSystem::init_drawable() {
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(0);
 
-    glGenBuffers(1, &vao.vbo_springs_id);
-    glBindBuffer(GL_ARRAY_BUFFER, vao.vbo_springs_id);
-    glBufferData(GL_ARRAY_BUFFER, 2 * vao.n_springs * sizeof(GLint), vao.s_ab.data(), GL_DYNAMIC_DRAW);
-    glVertexAttribPointer(1, 1, GL_INT, GL_FALSE, 0, 0);
+    glGenBuffers(1, &vao.vbo_instance_id);
+    glBindBuffer(GL_ARRAY_BUFFER, vao.vbo_instance_id);
+    glBufferData(GL_ARRAY_BUFFER, 2 * vao.n_instances * sizeof(GLfloat), vao.p_xy.data(), GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(1);
+    glVertexAttribDivisor(1, 1);
 
+    glGenBuffers(1, &vao.vbo_springs_id);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao.vbo_springs_id);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * vao.n_springs * sizeof(GLuint), vao.s_ab.data(), GL_DYNAMIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 };
 
@@ -120,15 +126,18 @@ void MassSpringSystem::draw() {
 
     // -> draw nodes
     glUniform1i(ga::Visualization::mass_spring_program.uniform("mode"), 0);
-    glUniform2fv(ga::Visualization::mass_spring_program.uniform("pos"), 2 * vao.n_instances, vao.p_xy.data());
+    glVertexAttribDivisor(1, 1);
+    glBindBuffer(GL_ARRAY_BUFFER, vao.vbo_instance_id);
+    glBufferData(GL_ARRAY_BUFFER, 2 * vao.n_instances * sizeof(GLfloat), vao.p_xy.data(), GL_DYNAMIC_DRAW);
     glDrawArraysInstanced(vao.shape.type_primitive, 0, vao.shape.n_vertices, vao.n_instances);
+    glVertexAttribDivisor(1, 0);
     // <-
 
     // -> draw springs
     glUniform1i(ga::Visualization::mass_spring_program.uniform("mode"), 1);
-    glBindBuffer(GL_ARRAY_BUFFER, vao.vbo_springs_id);
-    glBufferData(GL_ARRAY_BUFFER, 2 * vao.n_springs * sizeof(GLint), vao.s_ab.data(), GL_DYNAMIC_DRAW);
-    glDrawArrays(GL_LINES, 0, vao.n_springs * 2);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao.vbo_springs_id);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * vao.n_springs * sizeof(GLuint), vao.s_ab.data(), GL_DYNAMIC_DRAW);
+    glDrawElements(GL_LINES, 2 * vao.n_springs, GL_UNSIGNED_INT, 0);
     // <-
 
 };
@@ -154,17 +163,17 @@ void MassSpringSystem::move() {
             n.second.x += n.second.v * dt;
         }
     }
-     */
+    */
+
+    int i_spring = 0;
+    for (auto &s : springs) {
+        vao.s_ab[i_spring++] = static_cast<unsigned int> (s.first.first);
+        vao.s_ab[i_spring++] = static_cast<unsigned int> (s.first.second);
+    }
     int i_node = 0;
     for (auto &n : nodes) {
         vao.p_xy[i_node++] = (float) (n.second.x[0]);
         vao.p_xy[i_node++] = (float) (n.second.x[1]);
     }
-    int i_spring = 0;
-    for (auto &s : springs) {
-        vao.s_ab[i_spring++] = s.first.first;
-        vao.s_ab[i_spring++] = s.first.second;
-    }
-
 
 };
