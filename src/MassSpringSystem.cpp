@@ -8,7 +8,7 @@ MassSpringSystem::MassSpringSystem() : nodes(30), springs(30 * 8) {
     load_file("/Users/amon/grive/development/Springs2D/data/mesh.msh");
     int i_spring = 0;
     for (auto &m : sm) {
-        springs.push_back(m.first.first, m.first.second, 1.0, 0, i_spring++);
+        springs.push_back(m.first.first, m.first.second, 50.0, 0, i_spring++);
     }
     Springs::set_deq_by_given_state(nodes.p_x.data(), nodes.p_y.data(), springs.a.data(), springs.b.data(),
                                     springs.d_eq.data(), springs.n_size);
@@ -57,9 +57,9 @@ void MassSpringSystem::load_file(std::string file) {
                     isse >> phase >> tag >> ent >> n1 >> n2;
                     if (tag == tag_phase_fix) {
                         int nn1 = nodes.key[n1 - 1];
+                        nodes.transfer_free2fix(nn1);
                         int nn2 = nodes.key[n2 - 1];
-                        //nodes.transfer_free2fix(nn1);
-                        //nodes.transfer_free2fix(nn2);
+                        nodes.transfer_free2fix(nn2);
                     }
                 }
                 if (type == 2) {
@@ -77,9 +77,9 @@ void MassSpringSystem::load_file(std::string file) {
     }
 }
 
-
 void MassSpringSystem::init_shape() {
-    vao.model_matrix = glm::scale(glm::mat4(1), glm::vec3(0.5, 0.5, 1.0));
+    glm::mat4 trans_mat = glm::translate(glm::mat4(1), glm::vec3(0, -0.3, 0));
+    vao.model_matrix = trans_mat * glm::scale(glm::mat4(1), glm::vec3(0.3, 0.3, 1.0));
     vao.shape = ga::Shape::make_circle(0.02);
 }
 
@@ -90,7 +90,6 @@ void MassSpringSystem::init_instances() {
     vao.n_springs = springs.n_size;
     vao.s_ab.resize(2 * springs.n_size);
 }
-
 
 void MassSpringSystem::init_drawable() {
     glUseProgram(ga::Visualization::mass_spring_program.get_id());
@@ -134,6 +133,13 @@ void MassSpringSystem::draw() {
     glUseProgram(ga::Visualization::mass_spring_program.get_id());
     glBindVertexArray(vao.vao_id);
 
+    // -> draw springs
+    glUniform1i(ga::Visualization::mass_spring_program.uniform("mode"), 1);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao.vbo_springs_id);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * vao.n_springs * sizeof(GLuint), vao.s_ab.data(), GL_DYNAMIC_DRAW);
+    glDrawElements(GL_LINES, 2 * vao.n_springs, GL_UNSIGNED_INT, 0);
+    // <-
+
     // -> draw nodes
     glUniform1i(ga::Visualization::mass_spring_program.uniform("mode"), 0);
     glVertexAttribDivisor(1, 1);
@@ -143,12 +149,6 @@ void MassSpringSystem::draw() {
     glVertexAttribDivisor(1, 0);
     // <-
 
-    // -> draw springs
-    glUniform1i(ga::Visualization::mass_spring_program.uniform("mode"), 1);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao.vbo_springs_id);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * vao.n_springs * sizeof(GLuint), vao.s_ab.data(), GL_DYNAMIC_DRAW);
-    glDrawElements(GL_LINES, 2 * vao.n_springs, GL_UNSIGNED_INT, 0);
-    // <-
 };
 
 void MassSpringSystem::gather() {
@@ -164,10 +164,10 @@ void MassSpringSystem::gather() {
 };
 
 void MassSpringSystem::move() {
-    double dt = 1e-3;
+    double dt = 1e-2;
     for (int i = 0; i < nodes.n_size_free; i++) {
         nodes.f_x[i] = 0;
-        nodes.f_y[i] = -9.81;
+        nodes.f_y[i] = -2.5;
     }
 
     Solver::mss_force(nodes.p_x.data(), nodes.p_y.data(), nodes.f_x.data(), nodes.f_y.data(), nodes.n_size_fix,
@@ -175,5 +175,6 @@ void MassSpringSystem::move() {
 
     Solver::euler_forward(nodes.p_x.data(), nodes.p_y.data(), nodes.v_x.data(), nodes.v_y.data(), nodes.f_x.data(),
                           nodes.f_y.data(), nodes.m.data(), dt, nodes.n_size_free);
+
     gather();
 }

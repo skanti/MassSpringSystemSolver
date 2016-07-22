@@ -92,8 +92,10 @@ struct Nodes {
     }
 
     void transfer_free2fix(int i) {
-        swap(i, n_size_free - 1);
-        n_size_free--;
+        if (i < n_size_free - 1) {
+            swap(i, n_size_free - 1);
+            n_size_free--;
+        }
     }
 
     void transfer_free2idle(int i) {
