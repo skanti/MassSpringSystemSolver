@@ -19,7 +19,7 @@ set(SOURCE_FILES_H
         src/Springs.h
         src/VecVec.h
         src/Solver.h
-        src/SOM.h)
+        )
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
 

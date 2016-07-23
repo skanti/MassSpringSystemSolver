@@ -1,4 +1,6 @@
 #include "Solver.h"
+#include <algorithm>
+#include <numeric>
 #include <cmath>
 #include <iostream>
 
@@ -34,4 +36,12 @@ void Solver::euler_forward(double *p_x, double *p_y, double *v_x, double *v_y, d
         p_x[i] += v_x[i] * dt;
         p_y[i] += v_y[i] * dt;
     }
+}
+
+int Solver::find_pair_duplicate(int ai, int bi, int *a, int *b, int n_springs) {
+    int j_duplicate = -1;
+    for (int j = 0; j < n_springs; j++) {
+        j_duplicate += (ai == a[j]) && (bi == b[j]) * (j + 1);
+    }
+    return j_duplicate;
 }

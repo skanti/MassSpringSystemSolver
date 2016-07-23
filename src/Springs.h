@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <utility>
-
+#include <unordered_map>
 
 struct Springs {
     Springs(int n_size_reserved_) :
@@ -24,17 +24,32 @@ struct Springs {
     }
 
 
-    void set(int i, int ai, int bi, double ki, double deqi, int keyi) {
+    void set(int i, int ai, int bi, double ki, double deqi) {
         a[i] = ai;
         b[i] = bi;
         k[i] = ki;
         d_eq[i] = deqi;
-        key[i] = keyi;
     }
 
-    void push_back(int ai, int bi, double ki, double deqi, int keyi) {
-        set(n_size, ai, bi, ki, deqi, keyi);
+    void push_back(int ai, int bi, double ki, double deqi) {
+        set(n_size, ai, bi, ki, deqi);
         n_size++;
+    }
+
+    void push_back_sym_if_unique(int ai, int bi, double ki, double deqi) {
+        int abi = ai <= bi ? (ai << 16) + bi : (bi << 16) + ai;
+        if (hashkey.insert({abi, n_size}).second) {
+            set(n_size, ai, bi, ki, deqi);
+            n_size++;
+        }
+    }
+
+    void remove_sym_if_unique(int ai, int bi) {
+        int hki = ai <= bi ? (ai << 16) + bi : (bi << 16) + ai;
+        if (hashkey.find(hki) != hashkey.end()) {
+            remove(hashkey[hki]);
+            hashkey.erase(hki);
+        }
     }
 
 
@@ -43,7 +58,10 @@ struct Springs {
         std::swap(b[i], b[j]);
         std::swap(k[i], k[j]);
         std::swap(d_eq[i], d_eq[j]);
-        std::swap(key[i], key[j]);
+        int hki = (a[i] << 16) + b[i];
+        int hkj = (a[j] << 16) + b[j];
+        std::swap(hashkey[hki], hashkey[hkj]);
+
     }
 
     static void set_deq_by_given_state(double *p_x, double *p_y, int *a, int *b, double *deq, int n_springs) {
@@ -64,15 +82,16 @@ struct Springs {
     // -> springs
     int n_size;
     int n_size_reserved;
-    std::vector<int> a;
-    std::vector<int> b;
-    std::vector<double> k;
-    std::vector<double> d_eq;
-    std::vector<int> key;
+    std::unordered_map<int, int> hashkey;
+    std::vector<int, AlignedAllocator<int, 32>> a;
+    std::vector<int, AlignedAllocator<int, 32>> b;
+    std::vector<double, AlignedAllocator<double, 32>> k;
+    std::vector<double, AlignedAllocator<double, 32>> d_eq;
+    std::vector<int, AlignedAllocator<int, 32>> key;
     // <-
 
     // -> temporary/dynamic
-    std::vector<int> tmp;
+    std::vector<int, AlignedAllocator<int, 32>> tmp;
     // <-
 };
 

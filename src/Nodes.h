@@ -42,21 +42,21 @@ struct Nodes {
         key[i] = keyi;
     }
 
-    void push_back_free(double pxi, double pyi, double vxi, double vyi, double mi, double di, int keyi) {
-        set(n_size_free, pxi, pyi, vxi, vyi, mi, di, keyi);
+    void push_back_free(double pxi, double pyi, double vxi, double vyi, double mi, double di) {
+        set(n_size_free, pxi, pyi, vxi, vyi, mi, di, n_size_free);
         n_size_free++;
         n_size_fix++;
         n_size++;
     }
 
-    void push_back_fix(double pxi, double pyi, double vxi, double vyi, double mi, double di, int keyi) {
-        set(n_size_fix, pxi, pyi, vxi, vyi, mi, di, keyi);
+    void push_back_fix(double pxi, double pyi, double vxi, double vyi, double mi, double di) {
+        set(n_size_fix, pxi, pyi, vxi, vyi, mi, di, n_size_fix);
         n_size_fix++;
         n_size++;
     }
 
-    void push_back_idle(double pxi, double pyi, double vxi, double vyi, double mi, double di, int keyi) {
-        set(n_size, pxi, pyi, vxi, vyi, mi, di, keyi);
+    void push_back_idle(double pxi, double pyi, double vxi, double vyi, double mi, double di) {
+        set(n_size, pxi, pyi, vxi, vyi, mi, di, n_size);
         n_size++;
     }
 
@@ -92,10 +92,8 @@ struct Nodes {
     }
 
     void transfer_free2fix(int i) {
-        if (i < n_size_free - 1) {
-            swap(i, n_size_free - 1);
-            n_size_free--;
-        }
+        swap(i, n_size_free - 1);
+        n_size_free--;
     }
 
     void transfer_free2idle(int i) {
@@ -132,18 +130,18 @@ struct Nodes {
     int n_size_fix;
     int n_size;
     int n_size_reserved;
-    std::vector<double> p_x;
-    std::vector<double> p_y;
-    std::vector<double> v_x;
-    std::vector<double> v_y;
-    std::vector<double> m;
-    std::vector<double> d_size;
-    std::vector<int> key;
+    std::vector<double, AlignedAllocator<double, 32>> p_x;
+    std::vector<double, AlignedAllocator<double, 32>> p_y;
+    std::vector<double, AlignedAllocator<double, 32>> v_x;
+    std::vector<double, AlignedAllocator<double, 32>> v_y;
+    std::vector<double, AlignedAllocator<double, 32>> m;
+    std::vector<double, AlignedAllocator<double, 32>> d_size;
+    std::vector<int, AlignedAllocator<int, 32>> key;
     // <-
 
     // -> dynamic-temporary. reset each iteration
-    std::vector<double> f_x;
-    std::vector<double> f_y;
+    std::vector<double, AlignedAllocator<double, 32>> f_x;
+    std::vector<double, AlignedAllocator<double, 32>> f_y;
     // <-
 };
 

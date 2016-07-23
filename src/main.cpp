@@ -23,6 +23,7 @@ int main(int argc, char *argv[]) {
     ga::Engine::init();
     Earth::init();
     ga::Engine::get_instance().set_world(&Earth::get_instance());
+    ga::Engine::get_instance().set_mouse_button_callback(&Earth::mouse_button_callback);
     ga::Engine::get_instance().run();
     return 0;
 }

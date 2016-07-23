@@ -18,8 +18,9 @@ public:
 
     void draw();
 
+    static void mouse_button_callback(GLFWwindow *window, int button, int action, int mods);
+
     static std::unique_ptr<Earth> earth;
-private:
     MassSpringSystem mss;
 };
 
