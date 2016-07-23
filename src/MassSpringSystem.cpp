@@ -151,7 +151,6 @@ void MassSpringSystem::gather() {
     }
 
     for (int i = 0; i < nodes.n_size_fix; i++) {
-        int ki = nodes.key[i];
         vao.p_xy[i * 2] = static_cast<float>(nodes.p_x[i]);
         vao.p_xy[i * 2 + 1] = static_cast<float>(nodes.p_y[i]);
     }
