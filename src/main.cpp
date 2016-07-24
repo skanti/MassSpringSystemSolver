@@ -20,7 +20,7 @@ class BlankWorld : public ga::World {
 std::unique_ptr<Earth> Earth::earth = nullptr;
 
 int main(int argc, char *argv[]) {
-    ga::Engine::init();
+    ga::Engine::init("Springs2D");
     Earth::init();
     ga::Engine::get_instance().set_world(&Earth::get_instance());
     ga::Engine::get_instance().set_mouse_button_callback(&Earth::mouse_button_callback);

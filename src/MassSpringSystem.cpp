@@ -6,8 +6,8 @@ const int n_springs_per_node = 8;
 
 MassSpringSystem::MassSpringSystem() : nodes(30), springs(30 * 8) {
     load_file("/Users/amon/grive/development/Spring2D/data/mesh.msh");
-    Springs::set_deq_by_given_state(nodes.p_x.data(), nodes.p_y.data(), springs.a.data(), springs.b.data(),
-                                    springs.d_eq.data(), springs.n_size);
+    Springs::set_deq_by_given_state(nodes.p_x.data(), nodes.p_y.data(), nodes.index.data(), springs.a.data(),
+                                    springs.b.data(), springs.d_eq.data(), springs.n_size);
 
     /*
     for (int i = 0; i < nodes.n_size_fix; i++) {
@@ -52,10 +52,12 @@ void MassSpringSystem::load_file(std::string file) {
                     int phase, tag, ent, n1, n2;
                     isse >> phase >> tag >> ent >> n1 >> n2;
                     if (tag == tag_phase_fix) {
-                        //int nn1 = nodes.key[n1 - 1];
-                        //nodes.transfer_free2fix(nn1);
-                        //int nn2 = nodes.key[n2 - 1];
-                        //nodes.transfer_free2fix(nn2);
+                        int nn1 = nodes.index[n1 - 1];
+                        if (nn1 < nodes.n_size_free)
+                            nodes.transfer_free2fix(nn1);
+                        int nn2 = nodes.index[n2 - 1];
+                        if (nn2 < nodes.n_size_free)
+                            nodes.transfer_free2fix(nn2);
                     }
                 }
                 if (type == 2) {
@@ -130,8 +132,8 @@ void MassSpringSystem::draw() {
     // -> draw springs
     glUniform1i(ga::Visualization::mass_spring_program.uniform("mode"), 1);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao.vbo_springs_id);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * vao.n_springs * sizeof(GLuint), vao.s_ab.data(), GL_DYNAMIC_DRAW);
-    glDrawElements(GL_LINES, 2 * vao.n_springs, GL_UNSIGNED_INT, 0);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * springs.n_size * sizeof(GLuint), vao.s_ab.data(), GL_DYNAMIC_DRAW);
+    glDrawElements(GL_LINES, 2 * springs.n_size, GL_UNSIGNED_INT, 0);
     // <-
 
     // -> draw nodes
@@ -165,9 +167,13 @@ void MassSpringSystem::attach_detach() {
             double dy = nodes.p_y[i] - nodes.p_y[j];
             double d = std::sqrt(dx * dx + dy * dy);
             if (d <= 0.5) {
-                springs.push_back_sym_if_unique(i, j, 50.0, d);
+                int a = nodes.key[i];
+                int b = nodes.key[j];
+                springs.push_back_sym_if_unique(a, b, 50.0, d);
             } else if (d > 1.0) {
-                springs.remove_sym_if_unique(i, j);
+                int a = nodes.key[i];
+                int b = nodes.key[j];
+                springs.remove_sym_if_unique(a, b);
             }
         }
     }
@@ -176,15 +182,14 @@ void MassSpringSystem::attach_detach() {
 void MassSpringSystem::move() {
     double dt = 1e-2;
 
-    //attach_detach();
+    attach_detach();
     for (int i = 0; i < nodes.n_size_free; i++) {
         nodes.f_x[i] = 0;
-        nodes.f_y[i] = -1.1;
+        nodes.f_y[i] = -1.3;
     }
     Solver::mss_force(nodes.p_x.data(), nodes.p_y.data(), nodes.f_x.data(), nodes.f_y.data(), nodes.index.data(),
                       nodes.n_size_fix, springs.a.data(), springs.b.data(), springs.k.data(), springs.d_eq.data(),
                       springs.n_size);
-
     Solver::euler_forward(nodes.p_x.data(), nodes.p_y.data(), nodes.v_x.data(), nodes.v_y.data(), nodes.f_x.data(),
                           nodes.f_y.data(), nodes.m.data(), dt, nodes.n_size_free);
 
@@ -193,9 +198,9 @@ void MassSpringSystem::move() {
 
 void MassSpringSystem::spawn_floating_nodes(double pxi, double pyi) {
     if (nodes.n_size < nodes.n_size_reserved) {
-        //nodes.push_back_idle(pxi, pyi, 0, 0, 1.0, 1.0);
-        //nodes.transfer_idle2free(nodes.n_size - 1);
-        nodes.transfer_free2fix(0);
+        nodes.push_back_idle(pxi, pyi, 0, 0, 1.0, 1.0);
+        nodes.transfer_idle2free(nodes.n_size - 1);
+        //nodes.transfer_free2fix(0);
     }
     /*
     std::cout << "*******************" << std::endl;

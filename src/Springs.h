@@ -64,10 +64,13 @@ struct Springs {
 
     }
 
-    static void set_deq_by_given_state(double *p_x, double *p_y, int *a, int *b, double *deq, int n_springs) {
+    static void
+    set_deq_by_given_state(double *p_x, double *p_y, int *index, int *a, int *b, double *deq, int n_springs) {
         for (int i = 0; i < n_springs; i++) {
-            double dx = p_x[a[i]] - p_x[b[i]];
-            double dy = p_y[a[i]] - p_y[b[i]];
+            int ai = index[a[i]];
+            int bi = index[b[i]];
+            double dx = p_x[ai] - p_x[bi];
+            double dy = p_y[ai] - p_y[bi];
             deq[i] = std::sqrt(dx * dx + dy * dy);
         };
     }
