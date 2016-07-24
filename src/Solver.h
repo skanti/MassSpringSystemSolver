@@ -7,8 +7,8 @@
 
 class Solver {
 public:
-    static void mss_force(double *p_x, double *p_y, double *f_x, double *f_y, int n_nodes,
-                          int *a, int *b, double *k, double *d_eq, int n_springs);
+    static void mss_force(double *p_x, double *p_y, double *f_x, double *f_y, int *index, int n_nodes, int *a, int *b,
+                              double *k, double *d_eq, int n_springs);
 
 
     static void

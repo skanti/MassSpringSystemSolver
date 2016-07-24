@@ -24,7 +24,7 @@ set(SOURCE_FILES_H
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
 
 set(GAMEFRAMEWORK_DIR /Users/amon/grive/development/GameFramework)
-set(FREETYPE_DIR /usr/local/Cellar/freetype/2.6.3)
+set(FREETYPE_DIR /usr/local/Cellar/freetype/2.6.5)
 set(ARMADILLO_DIR /usr/local/Cellar/armadillo/7.200.2)
 
 include_directories(${GAMEFRAMEWORK_DIR}/src/cpp ${FREETYPE_DIR}/include/freetype2 ${ARMADILLO_DIR}/include)

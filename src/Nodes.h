@@ -12,7 +12,7 @@ struct Nodes {
               p_x(n_size_reserved), p_y(n_size_reserved),
               v_x(n_size_reserved), v_y(n_size_reserved),
               m(n_size_reserved), d_size(n_size_reserved),
-              key(n_size_reserved),
+              key(n_size_reserved), index(n_size_reserved),
               f_x(n_size_reserved), f_y(n_size_reserved) {};
 
     void reserve(int n_size_reserved_) {
@@ -26,6 +26,7 @@ struct Nodes {
         m.resize(n_size_reserved);
         d_size.resize(n_size_reserved);
         key.reserve(n_size_reserved);
+        index.reserve(n_size_reserved);
 
         // temporary arrays
         f_x.resize(n_size_reserved);
@@ -40,6 +41,7 @@ struct Nodes {
         m[i] = mi;
         d_size[i] = di;
         key[i] = keyi;
+        index[i] = keyi;
     }
 
     void push_back_free(double pxi, double pyi, double vxi, double vyi, double mi, double di) {
@@ -68,6 +70,8 @@ struct Nodes {
         std::swap(m[i], m[j]);
         std::swap(d_size[i], d_size[j]);
         std::swap(key[i], key[j]);
+        index[key[i]] = i;
+        index[key[j]] = j;
     }
 
     void remove_free(int i) {
@@ -137,6 +141,7 @@ struct Nodes {
     std::vector<double, AlignedAllocator<double, 32>> m;
     std::vector<double, AlignedAllocator<double, 32>> d_size;
     std::vector<int, AlignedAllocator<int, 32>> key;
+    std::vector<int, AlignedAllocator<int, 32>> index;
     // <-
 
     // -> dynamic-temporary. reset each iteration

@@ -8,11 +8,12 @@ MassSpringSystem::MassSpringSystem() : nodes(30), springs(30 * 8) {
     load_file("/Users/amon/grive/development/Spring2D/data/mesh.msh");
     Springs::set_deq_by_given_state(nodes.p_x.data(), nodes.p_y.data(), springs.a.data(), springs.b.data(),
                                     springs.d_eq.data(), springs.n_size);
+
     /*
-    for (int i = 0; i < springs.n_size; i++) {
-        std::cout << springs.a[i] << " " << springs.b[i] << " " << springs.d_eq[i] << std::endl;
+    for (int i = 0; i < nodes.n_size_fix; i++) {
+        std::cout << nodes.key[i] << " " << nodes.index[i] << std::endl;
     }
-    */
+     */
     init_shape();
     init_instances();
     init_drawable();
@@ -51,18 +52,18 @@ void MassSpringSystem::load_file(std::string file) {
                     int phase, tag, ent, n1, n2;
                     isse >> phase >> tag >> ent >> n1 >> n2;
                     if (tag == tag_phase_fix) {
-                        int nn1 = nodes.key[n1 - 1];
+                        //int nn1 = nodes.key[n1 - 1];
                         //nodes.transfer_free2fix(nn1);
-                        int nn2 = nodes.key[n2 - 1];
+                        //int nn2 = nodes.key[n2 - 1];
                         //nodes.transfer_free2fix(nn2);
                     }
                 }
                 if (type == 2) {
                     int phase, tag, ent, n1, n2, n3;
                     isse >> phase >> tag >> ent >> n1 >> n2 >> n3;
-                    int nn1 = nodes.key[n1 - 1];
-                    int nn2 = nodes.key[n2 - 1];
-                    int nn3 = nodes.key[n3 - 1];
+                    int nn1 = n1 - 1;
+                    int nn2 = n2 - 1;
+                    int nn3 = n3 - 1;
                     springs.push_back_sym_if_unique(nn1, nn2, 50.0, 0);
                     springs.push_back_sym_if_unique(nn1, nn3, 50.0, 0);
                     springs.push_back_sym_if_unique(nn2, nn3, 50.0, 0);
@@ -146,8 +147,8 @@ void MassSpringSystem::draw() {
 
 void MassSpringSystem::gather() {
     for (int i = 0; i < springs.n_size; i++) {
-        vao.s_ab[i * 2] = static_cast<unsigned int>(nodes.key[springs.a[i]]);
-        vao.s_ab[i * 2 + 1] = static_cast<unsigned int>(nodes.key[springs.b[i]]);
+        vao.s_ab[i * 2] = static_cast<unsigned int>(nodes.index[springs.a[i]]);
+        vao.s_ab[i * 2 + 1] = static_cast<unsigned int>(nodes.index[springs.b[i]]);
     }
 
     for (int i = 0; i < nodes.n_size_fix; i++) {
@@ -174,25 +175,36 @@ void MassSpringSystem::attach_detach() {
 
 void MassSpringSystem::move() {
     double dt = 1e-2;
-    /*
-    attach_detach();
 
+    //attach_detach();
     for (int i = 0; i < nodes.n_size_free; i++) {
         nodes.f_x[i] = 0;
-        nodes.f_y[i] = -2.5;
+        nodes.f_y[i] = -1.1;
     }
-    Solver::mss_force(nodes.p_x.data(), nodes.p_y.data(), nodes.f_x.data(), nodes.f_y.data(), nodes.n_size_fix,
-                      springs.a.data(), springs.b.data(), springs.k.data(), springs.d_eq.data(), springs.n_size);
+    Solver::mss_force(nodes.p_x.data(), nodes.p_y.data(), nodes.f_x.data(), nodes.f_y.data(), nodes.index.data(),
+                      nodes.n_size_fix, springs.a.data(), springs.b.data(), springs.k.data(), springs.d_eq.data(),
+                      springs.n_size);
 
     Solver::euler_forward(nodes.p_x.data(), nodes.p_y.data(), nodes.v_x.data(), nodes.v_y.data(), nodes.f_x.data(),
                           nodes.f_y.data(), nodes.m.data(), dt, nodes.n_size_free);
-    */
+
     gather();
 }
 
 void MassSpringSystem::spawn_floating_nodes(double pxi, double pyi) {
     if (nodes.n_size < nodes.n_size_reserved) {
-        nodes.push_back_idle(pxi, pyi, 0, 0, 1.0, 1.0);
-        nodes.transfer_idle2free(nodes.n_size - 1);
+        //nodes.push_back_idle(pxi, pyi, 0, 0, 1.0, 1.0);
+        //nodes.transfer_idle2free(nodes.n_size - 1);
+        nodes.transfer_free2fix(0);
     }
+    /*
+    std::cout << "*******************" << std::endl;
+    for (int i = 0; i < nodes.n_size_fix; i++)
+        std::cout << nodes.key[i] << " " << nodes.index[i] << " \t" << (i >= nodes.n_size_free) << std::endl;
+    std::cout << "*******************" << std::endl;
+    for (int i = 0; i < springs.n_size; i++)
+        std::cout << "orig: " << springs.a[i] << " " << springs.b[i]
+                  << " new: " << nodes.index[nodes.key[springs.a[i]]] << " " << nodes.index[nodes.key[springs.b[i]]]
+                  << std::endl;
+    */
 }
