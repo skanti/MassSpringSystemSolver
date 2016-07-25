@@ -1,25 +1,39 @@
-#include "MassSpringSystem.h"
-#include "Visualization.h"
+#include "MSN2DWorld.h"
 #include "Solver.h"
+#include "Engine.h"
 
-const int n_springs_per_node = 8;
-
-MassSpringSystem::MassSpringSystem() : nodes(50), springs(50 * 8) {
-    load_file("/Users/amon/grive/development/Spring2D/data/mesh.msh");
+MSN2DWorld::MSN2DWorld() : World(), nodes(50), springs(50 * 8) {
+    load_file("/Users/amon/grive/development/MassSpringNetwork/data/mesh.msh");
     Springs::set_deq_by_given_state(nodes.p_x.data(), nodes.p_y.data(), nodes.index.data(), springs.a.data(),
                                     springs.b.data(), springs.d_eq.data(), springs.n_size);
 
-    /*
-    for (int i = 0; i < nodes.n_size_fix; i++) {
-        std::cout << nodes.key[i] << " " << nodes.index[i] << std::endl;
-    }
-     */
     init_shape();
     init_instances();
     init_drawable();
 }
 
-void MassSpringSystem::load_file(std::string file) {
+void MSN2DWorld::init() {
+    if (!msn2d_world) msn2d_world = std::unique_ptr<MSN2DWorld>(new MSN2DWorld());
+}
+
+MSN2DWorld &MSN2DWorld::get_instance() {
+    return *msn2d_world;
+}
+
+void MSN2DWorld::mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+        double p_x_target, p_y_target;
+        ga::Engine::get_instance().get_cursor_position(&p_x_target, &p_y_target);
+        p_x_target = p_x_target * 2.0 / WINDOW_WIDTH - 1.0;
+        p_y_target = (-p_y_target * 2.0 / WINDOW_HEIGTH + 1.0) * WINDOW_ASPECTRATIO_INV;
+        glm::mat4 z = glm::scale(glm::mat4(1), glm::vec3(0.3, 0.3, 1.0));
+        glm::mat4 t = glm::translate(glm::mat4(1), glm::vec3(0, 0.3, 0));
+        glm::vec4 p = glm::inverse(z) * t * glm::vec4(p_x_target, p_y_target, 0, 1);
+        get_instance().spawn_floating_nodes(p[0], p[1]);
+    }
+}
+
+void MSN2DWorld::load_file(std::string file) {
     std::ifstream infile(file);
     std::string line;
     while (std::getline(infile, line)) {
@@ -75,13 +89,13 @@ void MassSpringSystem::load_file(std::string file) {
     }
 }
 
-void MassSpringSystem::init_shape() {
+void MSN2DWorld::init_shape() {
     glm::mat4 trans_mat = glm::translate(glm::mat4(1), glm::vec3(0, -0.3, 0));
     vao.model_matrix = trans_mat * glm::scale(glm::mat4(1), glm::vec3(0.3, 0.3, 1.0));
     vao.shape = ga::Shape::make_circle(0.03);
 }
 
-void MassSpringSystem::init_instances() {
+void MSN2DWorld::init_instances() {
     vao.n_instances = nodes.n_size;
     vao.p_xy.resize(2 * nodes.n_size_reserved);
 
@@ -89,7 +103,7 @@ void MassSpringSystem::init_instances() {
     vao.s_ab.resize(2 * springs.n_size_reserved);
 }
 
-void MassSpringSystem::init_drawable() {
+void MSN2DWorld::init_drawable() {
     glUseProgram(ga::Visualization::mass_spring_program.get_id());
     glGenVertexArrays(1, &vao.vao_id);
     glBindVertexArray(vao.vao_id);
@@ -125,7 +139,7 @@ void MassSpringSystem::init_drawable() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 };
 
-void MassSpringSystem::draw() {
+void MSN2DWorld::draw() {
     glUseProgram(ga::Visualization::mass_spring_program.get_id());
     glBindVertexArray(vao.vao_id);
 
@@ -147,7 +161,7 @@ void MassSpringSystem::draw() {
 
 };
 
-void MassSpringSystem::gather() {
+void MSN2DWorld::gather_for_rendering() {
     for (int i = 0; i < springs.n_size; i++) {
         vao.s_ab[i * 2] = static_cast<unsigned int>(nodes.index[springs.a[i]]);
         vao.s_ab[i * 2 + 1] = static_cast<unsigned int>(nodes.index[springs.b[i]]);
@@ -159,7 +173,7 @@ void MassSpringSystem::gather() {
     }
 };
 
-void MassSpringSystem::attach_detach() {
+void MSN2DWorld::springs_attach_detach() {
 
     for (int i = 0; i < nodes.n_size_free; i++) {
         for (int j = i + 1; j < nodes.n_size_fix; j++) {
@@ -179,10 +193,10 @@ void MassSpringSystem::attach_detach() {
     }
 }
 
-void MassSpringSystem::move() {
+void MSN2DWorld::advance(std::size_t &iteration_counter, long long int ms_per_frame) {
     double dt = 1e-2;
 
-    attach_detach();
+    springs_attach_detach();
     for (int i = 0; i < nodes.n_size_free; i++) {
         nodes.f_x[i] = 0;
         nodes.f_y[i] = -1.3;
@@ -193,10 +207,10 @@ void MassSpringSystem::move() {
     Solver::euler_forward(nodes.p_x.data(), nodes.p_y.data(), nodes.v_x.data(), nodes.v_y.data(), nodes.f_x.data(),
                           nodes.f_y.data(), nodes.m.data(), dt, nodes.n_size_free);
 
-    gather();
+    gather_for_rendering();
 }
 
-void MassSpringSystem::spawn_floating_nodes(double pxi, double pyi) {
+void MSN2DWorld::spawn_floating_nodes(double pxi, double pyi) {
     if (nodes.n_size < nodes.n_size_reserved) {
         nodes.push_back_idle(pxi, pyi, 0, 0, 1.0, 1.0);
         nodes.transfer_idle2free(nodes.n_size - 1);

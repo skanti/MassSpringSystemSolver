@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(Springs2D CXX)
+project(MSN CXX)
 
 set(CMAKE_CXX_COMPILER "/usr/local/bin/c++-6")
 
@@ -8,16 +8,14 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -fopenmp -std=c++14 -framework Ope
 
 set(SOURCE_FILES_CPP
         src/main.cpp
-        src/Earth.cpp
+        src/MSN2DWorld.cpp
         src/Solver.cpp
-        src/MassSpringSystem.cpp)
+        )
 
 set(SOURCE_FILES_H
-        src/Earth.h
-        src/MassSpringSystem.h
+        src/MSN2DWorld.h
         src/Nodes.h
         src/Springs.h
-        src/VecVec.h
         src/Solver.h
         )
 
@@ -29,8 +27,8 @@ set(ARMADILLO_DIR /usr/local/Cellar/armadillo/7.200.2)
 
 include_directories(${GAMEFRAMEWORK_DIR}/src/cpp ${FREETYPE_DIR}/include/freetype2 ${ARMADILLO_DIR}/include)
 link_directories(${GAMEFRAMEWORK_DIR}/build ${ARMADILLO_DIR}/lib)
-add_executable(Springs2D ${SOURCE_FILES_CPP} ${SOURCE_FILES_H})
-target_link_libraries(Springs2D GameFramework Glew glfw3 freetype armadillo png)
+add_executable(MSNExample ${SOURCE_FILES_CPP} ${SOURCE_FILES_H})
+target_link_libraries(MSNExample GameFramework Glew glfw3 freetype armadillo png)
 
 
 

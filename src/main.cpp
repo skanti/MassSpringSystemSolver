@@ -2,28 +2,15 @@
 #include "Engine.h"
 #include <regex>
 #include <unordered_map>
-#include "Earth.h"
+#include "MSN2DWorld.h"
 
-float DT = 0.001;
-
-/*
-class BlankWorld : public ga::World {
-
-    void advance(std::size_t &iteration_counter, long long int ms_per_frame) {};
-
-    void draw() {};
-
-    static std::unique_ptr<BlankWorld> blank_world;
-};
-*/
-
-std::unique_ptr<Earth> Earth::earth = nullptr;
+std::unique_ptr<MSN2DWorld> MSN2DWorld::msn2d_world = nullptr;
 
 int main(int argc, char *argv[]) {
-    ga::Engine::init("Springs2D");
-    Earth::init();
-    ga::Engine::get_instance().set_world(&Earth::get_instance());
-    ga::Engine::get_instance().set_mouse_button_callback(&Earth::mouse_button_callback);
+    ga::Engine::init("Mass-Spring Network");
+    MSN2DWorld::init();
+    ga::Engine::get_instance().set_world(&MSN2DWorld::get_instance());
+    ga::Engine::get_instance().set_mouse_button_callback(&MSN2DWorld::mouse_button_callback);
     ga::Engine::get_instance().run();
     return 0;
 }
