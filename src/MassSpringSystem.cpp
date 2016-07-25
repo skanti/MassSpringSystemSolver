@@ -4,7 +4,7 @@
 
 const int n_springs_per_node = 8;
 
-MassSpringSystem::MassSpringSystem() : nodes(30), springs(30 * 8) {
+MassSpringSystem::MassSpringSystem() : nodes(50), springs(50 * 8) {
     load_file("/Users/amon/grive/development/Spring2D/data/mesh.msh");
     Springs::set_deq_by_given_state(nodes.p_x.data(), nodes.p_y.data(), nodes.index.data(), springs.a.data(),
                                     springs.b.data(), springs.d_eq.data(), springs.n_size);
