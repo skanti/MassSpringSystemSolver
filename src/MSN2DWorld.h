@@ -25,6 +25,8 @@ public:
 
     void init_shape();
 
+    void init_shader();
+
     void init_instances();
 
     void init_drawable();
@@ -38,6 +40,7 @@ public:
     void spawn_floating_nodes(double pxi, double pyi);
 
 private:
+    ga::GLSLProgram mass_spring_program;
     Nodes nodes;
     Springs springs;
     ga::VAOMassSpring vao;

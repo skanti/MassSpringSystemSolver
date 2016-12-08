@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.5)
 project(MSN CXX)
 
-set(CMAKE_CXX_COMPILER "/usr/local/bin/c++-6")
+set(CMAKE_CXX_COMPILER c++)
 
-set(OPTIMIZATION_FLAGS "-O3 -fomit-frame-pointer -ffast-math -march=native")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -fopenmp -std=c++14 -framework OpenGL")
+set(OPTIMIZATION_FLAGS "-O3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -fopenmp -std=c++14  -DGLEW_NO_GLU")
 
 set(SOURCE_FILES_CPP
         src/main.cpp
@@ -21,14 +21,13 @@ set(SOURCE_FILES_H
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
 
-set(GAMEFRAMEWORK_DIR /Users/amon/grive/development/GameFramework)
-set(FREETYPE_DIR /usr/local/Cellar/freetype/2.6.5)
-set(ARMADILLO_DIR /usr/local/Cellar/armadillo/7.200.2)
+set(GAMEFRAMEWORK_DIR /home/amon/grive/development/GameFramework)
+set(FREETYPE_DIR /usr/include/freetype2)
 
-include_directories(${GAMEFRAMEWORK_DIR}/src/cpp ${FREETYPE_DIR}/include/freetype2 ${ARMADILLO_DIR}/include)
-link_directories(${GAMEFRAMEWORK_DIR}/build ${ARMADILLO_DIR}/lib)
+include_directories(${GAMEFRAMEWORK_DIR}/src/cpp ${FREETYPE_DIR})
+link_directories(${GAMEFRAMEWORK_DIR}/build)
 add_executable(MSNExample ${SOURCE_FILES_CPP} ${SOURCE_FILES_H})
-target_link_libraries(MSNExample GameFramework Glew glfw3 freetype armadillo png)
+target_link_libraries(MSNExample GameFramework GLEW glfw GL freetype png)
 
 
 
