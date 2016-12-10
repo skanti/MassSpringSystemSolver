@@ -1,5 +1,4 @@
-#ifndef SPRINGS_H
-#define SPRINGS_H
+#pragma once
 
 #include <vector>
 #include <utility>
@@ -58,8 +57,8 @@ struct Springs {
         std::swap(b[i], b[j]);
         std::swap(k[i], k[j]);
         std::swap(d_eq[i], d_eq[j]);
-        int hki = (a[i] << 16) + b[i];
-        int hkj = (a[j] << 16) + b[j];
+        int64_t hki = ((int64_t)a[i] << 32) + b[i];
+        int64_t hkj = ((int64_t)a[j] << 32) + b[j];
         std::swap(hashkey[hki], hashkey[hkj]);
 
     }
@@ -85,7 +84,7 @@ struct Springs {
     // -> springs
     int n_size;
     int n_size_reserved;
-    std::unordered_map<int, int> hashkey;
+    std::unordered_map<int64_t, int> hashkey;
     std::vector<int, AlignedAllocator<int, 32>> a;
     std::vector<int, AlignedAllocator<int, 32>> b;
     std::vector<double, AlignedAllocator<double, 32>> k;
@@ -98,4 +97,3 @@ struct Springs {
     // <-
 };
 
-#endif //GRAVITYASSIST_PHYSICALPROPERTIES_H
