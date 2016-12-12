@@ -4,8 +4,7 @@
 #include <cmath>
 #include <iostream>
 
-void Solver::mss_force(double *p_x, double *p_y, double *f_x, double *f_y, int *index, int n_nodes, int *a_s, int *b_s,
-                       double *k, double *d_eq, int n_springs) {
+void Solver::mss_force(double *p_x, double *p_y, double *f_x, double *f_y, int *index, int n_nodes, int *a_s, int *b_s, double *k, double *d_eq, int n_springs) {
     for (int i = 0; i < n_springs; i++) {
         int asi = index[a_s[i]];
         int bsi = index[b_s[i]];
@@ -22,15 +21,18 @@ void Solver::mss_force(double *p_x, double *p_y, double *f_x, double *f_y, int *
     }
 }
 
-void Solver::external_force(double *p_x, double *p_y, double *v_x, double *v_y, double *f_x, double *f_y, double *m,
-                            int n_nodes) {
+void Solver::external_force(double *p_x, double *p_y, double *v_x, double *v_y, double *f_x, double *f_y, double *m, int n_nodes) {
     for (int i = 0; i < n_nodes; i++) {
         f_y[i] += -9.81;
     }
 }
 
-void Solver::euler_forward(double *p_x, double *p_y, double *v_x, double *v_y, double *f_x, double *f_y, double *m,
-                           double dt, int n_nodes) {
+
+void kavan(double *p_x, double *p_y, double *v_x, double *v_y, double *f_x, double *f_y, double *m, double dt, int n_nodes) {
+    
+}
+
+void Solver::euler_forward(double *p_x, double *p_y, double *v_x, double *v_y, double *f_x, double *f_y, double *m, double dt, int n_nodes) {
     for (int i = 0; i < n_nodes; i++) {
         v_x[i] = v_x[i] * (1.0 - dt) + f_x[i] * dt / m[i];
         v_y[i] = v_y[i] * (1.0 - dt) + f_y[i] * dt / m[i];

@@ -33,16 +33,12 @@ public:
 
     void advance(std::size_t &iteration_counter, long long int ms_per_frame);
 
-    void springs_attach_detach();
-
     void gather_for_rendering();
-
-    void spawn_floating_nodes(double pxi, double pyi);
 
 private:
     ga::GLSLProgram mass_spring_program;
-    Nodes nodes;
-    Springs springs;
+    Nodes<float> nodes;
+    Springs<int32_t> springs;
     ga::VAOMassSpring vao;
     static std::unique_ptr<MSN2DWorld> msn2d_world;
 };

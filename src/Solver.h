@@ -20,6 +20,10 @@ public:
     euler_forward(double *p_x, double *p_y, double *v_x, double *v_y, double *f_x, double *f_y, double *m,
                   double dt, int n_nodes);
 
+    static void 
+    kavan(double *p_x, double *p_y, double *v_x, double *v_y, double *f_x, double *f_y, double *m,
+                  double dt, int n_nodes);
+
     static int find_pair_duplicate(int ai, int bi, int *a, int *b, int n_springs);
 };
 
