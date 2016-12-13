@@ -6,6 +6,8 @@
 MSN2DWorld::MSN2DWorld() : World() {
     load_mesh_ply2<float>("/home/amon/grive/development/MassSpringNetwork/data/mesh.ply2", nodes, springs);
 
+    
+    exit(0);
     init_shader();
     init_shape();
     init_instances();

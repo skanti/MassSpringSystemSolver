@@ -18,7 +18,6 @@ void parse_csr(std::vector<std::pair<std::pair<int32_t, int32_t>, value_type_spr
 	int i1 = 1; // <-- current row pointer
 	matrix.i_y[1] = 1;
 	for (int i = 1; i < n_nz; i++) {
-		// std::cout << coo[i].first.second << std::endl;
 		matrix.i_x[i] = coo[i].first.second;
 		matrix.data[i] = coo[i].second;
 
@@ -87,13 +86,7 @@ static void load_mesh_ply2(std::string file, Nodes<value_type_node> &nodes, Spri
     }
     std::sort(coo.begin(), coo.end());
     parse_csr(coo, springs.A);
-    for (int i = 0; i < springs.A.n_y+1; i++) {
-    	for (int j = springs.A.i_y[i]; j < springs.A.i_y[i+1]; j++) {
-    		 std::cout << springs.A.i_y[i] << " " << springs.A.i_x[j] << " " << springs.A.data[j] << std::endl;
-    	}
-    }
     // <-
 
-    infile.close();
    exit(0);
 }
