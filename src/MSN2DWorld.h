@@ -1,13 +1,14 @@
 #ifndef SPRINGS2D_EARTH_H
 #define SPRINGS2D_EARTH_H
 
+#include <memory>
 #include "Visualization.h"
 #include "AlignedAllocator.h"
 #include "Nodes.h"
 #include "Springs.h"
 #include "World.h"
-#include <memory>
 #include "ImageManager.h"
+#include "Common.h"
 
 class MSN2DWorld : public ga::World {
 public:
@@ -37,8 +38,15 @@ public:
 
 private:
     ga::GLSLProgram mass_spring_program;
+    Eigen::SimplicialLDLT<SparseMatrix<float>> chol;
     Nodes<float> nodes;
-    Springs<int32_t> springs;
+    Springs<float> springs;
+    SparseMatrix<float> J;
+    SparseMatrix<float> L;
+    Vector<float> px_rhs; 
+    Vector<float> py_rhs;
+    Vector<float> dx_rhs;
+    Vector<float> dy_rhs;
     ga::VAOMassSpring vao;
     static std::unique_ptr<MSN2DWorld> msn2d_world;
 };

@@ -4,32 +4,12 @@
 #include "Nodes.h"
 #include "Springs.h"
 #include <unordered_map>
-#include <bitset>
 #include <utility>
 #include <algorithm>
 #include <numeric>
+#include <mkl.h>
+#include "Common.h"
 
-template<typename value_type_spring>
-void parse_csr(std::vector<std::pair<std::pair<int32_t, int32_t>, value_type_spring>> &coo, CSR<value_type_spring> &matrix) {
-	int n_nz = coo.size();
-	matrix.i_y[0] = coo[0].first.first;
-	matrix.i_x[0] = coo[0].first.second;
-	matrix.data[0] = coo[0].second;
-	int i1 = 1; // <-- current row pointer
-	matrix.i_y[1] = 1;
-	for (int i = 1; i < n_nz; i++) {
-		matrix.i_x[i] = coo[i].first.second;
-		matrix.data[i] = coo[i].second;
-
-		if (i1 == coo[i].first.first) {
-			i1++;
-			matrix.i_y[i1] += matrix.i_y[i1-1] + 1; 
-		} else { 
-			matrix.i_y[i1]++;
-			matrix.i_y[i1 + 1] = 0;
-		}
-	}
-};
 
 template<typename value_type_node, typename value_type_spring>
 static void load_mesh_ply2(std::string file, Nodes<value_type_node> &nodes, Springs<value_type_spring> &springs) {
@@ -75,18 +55,25 @@ static void load_mesh_ply2(std::string file, Nodes<value_type_node> &nodes, Spri
     // -> create spring sparse matrices
     int n_springs = hashmap.size();
     springs.init(n_nodes, n_springs);
-    std::vector<std::pair<std::pair<int32_t, int32_t>, value_type_spring>> coo;
+    typedef Eigen::Triplet<value_type_node> Triplet;
+    std::vector<Triplet> coo_A, coo_AA, coo_K;
     int i = 0;
     for (auto itr = hashmap.begin(); itr != hashmap.end(); itr++, i++) {
     	int64_t key = itr->first;
     	int32_t a = key >> 32;
     	int32_t b = key >> 0;
-    	coo.push_back({{a, i}, -1});
-    	coo.push_back({{b, i},  1});
+        value_type_spring k = 1;
+        springs.k[i] = k;
+        coo_K.push_back(Triplet(i,i, 1));
+    	coo_A.push_back(Triplet(a, i, -1));
+        coo_A.push_back(Triplet(b, i,  1));
+        coo_AA.push_back(Triplet(a, b,  -1.0*k));
+        coo_AA.push_back(Triplet(b, a,  -1.0*k));
+        coo_AA.push_back(Triplet(a, a,  1.0*k));
+    	coo_AA.push_back(Triplet(b, b,  1.0*k));
     }
-    std::sort(coo.begin(), coo.end());
-    parse_csr(coo, springs.A);
+    springs.A.setFromTriplets(coo_A.begin(), coo_A.end());
+    springs.AA.setFromTriplets(coo_AA.begin(), coo_AA.end());
+    springs.K.setFromTriplets(coo_K.begin(), coo_K.end());
     // <-
-
-   exit(0);
 }

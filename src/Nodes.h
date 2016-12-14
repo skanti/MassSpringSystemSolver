@@ -1,10 +1,9 @@
 #pragma once
 
-#include <vector>
 #include <utility>
+#include "Common.h"
 
-
-template <typename value_type, int alignment = 16>
+template <typename value_type>
 struct Nodes {
 
     void init(int n_size_) {
@@ -29,15 +28,15 @@ struct Nodes {
 
     // -> nodes
     int n_size;
-    std::vector<value_type, AlignedAllocator<value_type, alignment>> p_x;
-    std::vector<value_type, AlignedAllocator<value_type, alignment>> p_y;
-    std::vector<value_type, AlignedAllocator<value_type, alignment>> v_x;
-    std::vector<value_type, AlignedAllocator<value_type, alignment>> v_y;
-    std::vector<value_type, AlignedAllocator<value_type, alignment>> m;
+    Vector<value_type> p_x;
+    Vector<value_type> p_y;
+    Vector<value_type> v_x;
+    Vector<value_type> v_y;
+    Vector<value_type> m;
     // <-
 
     // -> dynamic-temporary. reset each iteration
-    std::vector<value_type, AlignedAllocator<value_type, alignment>> f_x;
-    std::vector<value_type, AlignedAllocator<value_type, alignment>> f_y;
+    Vector<value_type> f_x;
+    Vector<value_type> f_y;
     // <-
 };
