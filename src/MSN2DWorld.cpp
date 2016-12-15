@@ -7,7 +7,7 @@
 #include "MathKernels.h"
 #include "Timer.h"
 
-#define H1 1e-3
+#define H1 1e-4
 
 MSN2DWorld::MSN2DWorld() : World() {
     
@@ -17,13 +17,19 @@ MSN2DWorld::MSN2DWorld() : World() {
     py_rhs.resize(nodes.n_size);
     dx_rhs.resize(springs.n_size);
     dy_rhs.resize(springs.n_size);
-    SparseMatrix<float> M(nodes.n_size, nodes.n_size);
+    d_rhs.resize(springs.n_size);
+    M.resize(nodes.n_size, nodes.n_size);
     M.setIdentity();
+    std::vector<int> fixed_nodes = {0,1,2, 3, 4};
+    for (int i : fixed_nodes) {
+        M.valuePtr()[i] = 1000;        
+    }
     J = springs.A*springs.K;
-    L = M + (SparseMatrix<float>)((float)(H1*H1)*springs.A*springs.K*springs.A.transpose());
+    Q = M + (SparseMatrix<float>)((float)(H1*H1)*springs.A*springs.K*springs.A.transpose());
+    //std::cout << Q << std::endl;
     //sp_mm1_mul(springs.A, springs.k, J);
     //sp_mm1_add(springs.AA, nodes.m, L, (float)(H1*H1));
-    chol.compute(L);
+    chol.compute(Q);
     init_shader();
     init_shape();
     init_instances();
@@ -124,37 +130,43 @@ void MSN2DWorld::gather_for_rendering() {
         vao.p_xy[i * 2] = static_cast<float>(nodes.p_x[i]);
         vao.p_xy[i * 2 + 1] = static_cast<float>(nodes.p_y[i]);
     }
-    int32_t counter = 0;
-    for (int j = 0; j < springs.AA.cols(); j++) {
-        for (int pi = springs.AA.outerIndexPtr()[j]; pi < springs.AA.outerIndexPtr()[j+1]; pi++) {
-            int i = springs.AA.innerIndexPtr()[pi];
-            if (j > i) {
-                vao.s_ab[counter] = i;
-                vao.s_ab[counter+1] = j;
-                counter += 2;
-            }
-        }
-    }
+   for (int j = 0; j < springs.n_size; j++) {
+        int pi0 = springs.A.outerIndexPtr()[j];
+        int a = springs.A.innerIndexPtr()[pi0];
+        int b = springs.A.innerIndexPtr()[pi0 + 1];
+        vao.s_ab[j*2] = a;
+        vao.s_ab[j*2+1] = b;
+    } 
 };
 
 
 void MSN2DWorld::advance(std::size_t &iteration_counter, long long int ms_per_frame) {
+    float h = (float)(H1);
     float h2 = (float)(H1*H1);
-    Vector<float> fgravity =  Eigen::MatrixXf::Constant(nodes.n_size, 1, 1.0);
+    Vector<float> fgravity =  Eigen::MatrixXf::Constant(nodes.n_size, 1, -1.0f);
 
-    for (int i = 0; i < 1; i++) {
-        px_rhs = h2*J*springs.dx;
-        py_rhs = h2*J*springs.dy - fgravity;
-        
-        nodes.p_x = chol.solve(px_rhs);
-        nodes.p_y = chol.solve(py_rhs);
-
-        //std::cout << nodes.p_x << std::endl;
+    for (int i = 0; i < 5; i++) {
         dx_rhs = nodes.p_x.transpose()*J;
         dy_rhs = nodes.p_y.transpose()*J;
+        for (int j = 0; j < springs.n_size; j++) {
+            d_rhs[j] = std::sqrt(dx_rhs[j]*dx_rhs[j] + dy_rhs[j]*dy_rhs[j]);
+        }
 
-        springs.dx = springs.rd.cwiseProduct(dx_rhs)/dx_rhs.norm();
-        springs.dy = springs.rd.cwiseProduct(dy_rhs)/dy_rhs.norm();
+        springs.dx = springs.rd.cwiseProduct(dx_rhs).cwiseQuotient(d_rhs);
+        springs.dy = springs.rd.cwiseProduct(dy_rhs).cwiseQuotient(d_rhs);
+        
+        px_rhs = M*(nodes.p_x + nodes.v_x*h) + h2*(J*springs.dx);
+        py_rhs = M*(nodes.p_y +     nodes.v_y*h) + h2*(J*springs.dy + fgravity);
+        
+        nodes.v_x = nodes.p_x;
+        nodes.v_y = nodes.p_y;
+
+        nodes.p_x = chol.solve(px_rhs);
+        nodes.p_y = chol.solve(py_rhs);
+        nodes.v_x = (nodes.p_x - nodes.v_x)/h;
+        nodes.v_y = (nodes.p_y - nodes.v_y)/h;
+        // std::cout << nodes.p_x << std::endl;
+        // exit(0);
     }
     gather_for_rendering();
 }

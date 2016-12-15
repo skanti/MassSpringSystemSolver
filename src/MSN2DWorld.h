@@ -42,11 +42,13 @@ private:
     Nodes<float> nodes;
     Springs<float> springs;
     SparseMatrix<float> J;
-    SparseMatrix<float> L;
+    SparseMatrix<float> Q;
+    SparseMatrix<float> M;
     Vector<float> px_rhs; 
     Vector<float> py_rhs;
     Vector<float> dx_rhs;
     Vector<float> dy_rhs;
+    Vector<float> d_rhs;
     ga::VAOMassSpring vao;
     static std::unique_ptr<MSN2DWorld> msn2d_world;
 };

@@ -56,7 +56,7 @@ static void load_mesh_ply2(std::string file, Nodes<value_type_node> &nodes, Spri
     int n_springs = hashmap.size();
     springs.init(n_nodes, n_springs);
     typedef Eigen::Triplet<value_type_node> Triplet;
-    std::vector<Triplet> coo_A, coo_AA, coo_K;
+    std::vector<Triplet> coo_A, coo_K;
     int i = 0;
     for (auto itr = hashmap.begin(); itr != hashmap.end(); itr++, i++) {
     	int64_t key = itr->first;
@@ -67,13 +67,8 @@ static void load_mesh_ply2(std::string file, Nodes<value_type_node> &nodes, Spri
         coo_K.push_back(Triplet(i,i, 1));
     	coo_A.push_back(Triplet(a, i, -1));
         coo_A.push_back(Triplet(b, i,  1));
-        coo_AA.push_back(Triplet(a, b,  -1.0*k));
-        coo_AA.push_back(Triplet(b, a,  -1.0*k));
-        coo_AA.push_back(Triplet(a, a,  1.0*k));
-    	coo_AA.push_back(Triplet(b, b,  1.0*k));
     }
     springs.A.setFromTriplets(coo_A.begin(), coo_A.end());
-    springs.AA.setFromTriplets(coo_AA.begin(), coo_AA.end());
     springs.K.setFromTriplets(coo_K.begin(), coo_K.end());
     // <-
 }

@@ -14,7 +14,6 @@ struct Springs {
         dy.resize(n_springs);
         K.resize(n_springs, n_springs);
         A.resize(n_nodes, n_springs);
-        AA.resize(n_nodes, n_nodes);
     }
     
 
@@ -38,6 +37,5 @@ struct Springs {
     Vector<value_type> dy;
     SparseMatrix<value_type> K;
     SparseMatrix<value_type> A;
-    SparseMatrix<value_type> AA;
 };
 
