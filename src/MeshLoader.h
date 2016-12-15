@@ -62,9 +62,9 @@ static void load_mesh_ply2(std::string file, Nodes<value_type_node> &nodes, Spri
     	int64_t key = itr->first;
     	int32_t a = key >> 32;
     	int32_t b = key >> 0;
-        value_type_spring k = 1;
+        value_type_spring k = 10.0;
         springs.k[i] = k;
-        coo_K.push_back(Triplet(i,i, 1));
+        coo_K.push_back(Triplet(i, i, k));
     	coo_A.push_back(Triplet(a, i, -1));
         coo_A.push_back(Triplet(b, i,  1));
     }

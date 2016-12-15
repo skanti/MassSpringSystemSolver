@@ -32,6 +32,8 @@ struct Nodes {
     Vector<value_type> p_y;
     Vector<value_type> v_x;
     Vector<value_type> v_y;
+    Vector<value_type> g_x;
+    Vector<value_type> g_y;
     Vector<value_type> m;
     // <-
 
