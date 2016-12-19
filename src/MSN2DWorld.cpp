@@ -7,7 +7,7 @@
 #include "MathKernels.h"
 #include "Timer.h"
 
-#define H1 1e-2
+#define H1 1e-1
 
 MSN2DWorld::MSN2DWorld() : World() {
     
@@ -22,7 +22,7 @@ MSN2DWorld::MSN2DWorld() : World() {
     M.setIdentity();
     std::vector<int> fixed_nodes = {0,1,2, 3, 4};
     for (int i : fixed_nodes) {
-        M.valuePtr()[i] = 100000;        
+        M.valuePtr()[i] = 1e6;        
     }
     J = springs.A*springs.K;
     Q = M + (SparseMatrix<float>)((float)(H1*H1)*springs.A*springs.K*springs.A.transpose());
@@ -146,16 +146,16 @@ void MSN2DWorld::advance(std::size_t &iteration_counter, long long int ms_per_fr
     Vector<float> fgravity =  Eigen::MatrixXf::Constant(nodes.n_size, 1, -0.5f);
 
 
-    Vector<float> Y_x = nodes.p_x + nodes.v_x*h*(1.0f - h*0.5f); 
-    Vector<float> Y_y = nodes.p_y + nodes.v_y*h*(1.0f - h*0.5f);
+    nodes.q_x = nodes.p_x + nodes.v_x*h*(1.0f - h*0.5f); 
+    nodes.q_y = nodes.p_y + nodes.v_y*h*(1.0f - h*0.5f);
 
     nodes.v_x = nodes.p_x;
     nodes.v_y = nodes.p_y;
 
-    nodes.p_x = Y_x; 
-    nodes.p_y = Y_y;
+    nodes.p_x = nodes.q_x; 
+    nodes.p_y = nodes.q_y;
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 5; i++) {
 
         dx_rhs = nodes.p_x.transpose()*J;
         dy_rhs = nodes.p_y.transpose()*J;
@@ -166,8 +166,8 @@ void MSN2DWorld::advance(std::size_t &iteration_counter, long long int ms_per_fr
         springs.dx = springs.rd.cwiseProduct(dx_rhs).cwiseQuotient(d_rhs);
         springs.dy = springs.rd.cwiseProduct(dy_rhs).cwiseQuotient(d_rhs);
         
-        px_rhs = M*Y_x + h2*(J*springs.dx);
-        py_rhs = M*Y_y + h2*(J*springs.dy + fgravity);
+        px_rhs = M*nodes.q_x + h2*(J*springs.dx);
+        py_rhs = M*nodes.q_y + h2*(J*springs.dy + fgravity);
 
         nodes.p_x = chol.solve(px_rhs);
         nodes.p_y = chol.solve(py_rhs);

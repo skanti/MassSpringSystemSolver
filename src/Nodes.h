@@ -11,6 +11,8 @@ struct Nodes {
 
         p_x.resize(n_size);
         p_y.resize(n_size);
+        q_x.resize(n_size);
+        q_y.resize(n_size);
         v_x.resize(n_size);
         v_y.resize(n_size);
         m.resize(n_size);
@@ -30,6 +32,8 @@ struct Nodes {
     int n_size;
     Vector<value_type> p_x;
     Vector<value_type> p_y;
+    Vector<value_type> q_x;
+    Vector<value_type> q_y;
     Vector<value_type> v_x;
     Vector<value_type> v_y;
     Vector<value_type> g_x;
