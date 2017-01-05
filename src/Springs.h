@@ -12,21 +12,24 @@ struct Springs {
         rd.resize(n_springs);
         dx.resize(n_springs);
         dy.resize(n_springs);
+        dz.resize(n_springs);
         K.resize(n_springs, n_springs);
         A.resize(n_nodes, n_springs);
     }
     
 
-    void set_as_equilibrium(Vector<value_type> &px, Vector<value_type> &py) {
+    void set_as_equilibrium(Vector<value_type> &px, Vector<value_type> &py, Vector<value_type> &pz) {
         for (int j = 0; j < n_size; j++) {
             int pi0 = A.outerIndexPtr()[j];
             int a = A.innerIndexPtr()[pi0];
             int b = A.innerIndexPtr()[pi0 + 1];
             value_type dxj = -px[a] + px[b];
             value_type dyj = -py[a] + py[b];
-            rd[j] = std::sqrt(dxj*dxj + dyj*dyj);
+            value_type dzj = -pz[a] + pz[b];
+            rd[j] = std::sqrt(dxj*dxj + dyj*dyj + dzj*dzj);
             dx[j] = dxj/rd[j];
             dy[j] = dyj/rd[j];
+            dz[j] = dzj/rd[j];
         }    
     }
 
@@ -35,6 +38,7 @@ struct Springs {
     Vector<value_type> rd;
     Vector<value_type> dx;
     Vector<value_type> dy;
+    Vector<value_type> dz;
     SparseMatrix<value_type> K;
     SparseMatrix<value_type> A;
 };

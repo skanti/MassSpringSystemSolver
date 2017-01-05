@@ -10,13 +10,13 @@
 #include "ImageManager.h"
 #include "Common.h"
 
-class MSN2DWorld : public ga::World {
+class MSNWorld : public ga::World {
 public:
-    MSN2DWorld();
+    MSNWorld();
 
     static void init();
 
-    static MSN2DWorld &get_instance();
+    static MSNWorld &get_instance();
 
     void draw();
 
@@ -39,6 +39,7 @@ public:
 private:
     ga::GLSLProgram mass_spring_program;
     Eigen::SimplicialLDLT<SparseMatrix<float>> chol;
+    std::vector<int> fixed_nodes;
     Nodes<float> nodes;
     Springs<float> springs;
     SparseMatrix<float> J;
@@ -46,11 +47,13 @@ private:
     SparseMatrix<float> M;
     Vector<float> px_rhs; 
     Vector<float> py_rhs;
+    Vector<float> pz_rhs;
     Vector<float> dx_rhs;
     Vector<float> dy_rhs;
+    Vector<float> dz_rhs;
     Vector<float> d_rhs;
-    ga::VAOMassSpring vao;
-    static std::unique_ptr<MSN2DWorld> msn2d_world;
+    ga::VAOMassSpring3D vao;
+    static std::unique_ptr<MSNWorld> msn2d_world;
 };
 
 

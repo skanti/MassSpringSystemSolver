@@ -3,17 +3,16 @@ project(MSN CXX)
 
 set(CMAKE_CXX_COMPILER c++)
 
-set(OPTIMIZATION_FLAGS "-O3")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -fopenmp -std=c++14  -DGLEW_NO_GLU")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -fopenmp -std=c++14  -DGLEW_NO_GLU -DEIGEN_NO_DEBUG")
 
 set(SOURCE_FILES_CPP
         src/main.cpp
-        src/MSN2DWorld.cpp
+        src/MSNWorld.cpp
         src/Solver.cpp
         )
 
 set(SOURCE_FILES_H
-        src/MSN2DWorld.h
+        src/MSNWorld.h
         src/Nodes.h
         src/Springs.h
         src/Solver.h
