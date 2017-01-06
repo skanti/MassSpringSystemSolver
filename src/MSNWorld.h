@@ -37,6 +37,7 @@ public:
     void gather_for_rendering();
 
 private:
+    float tswing;
     ga::GLSLProgram mass_spring_program;
     Eigen::SimplicialLDLT<SparseMatrix<float>> chol;
     std::vector<int> fixed_nodes;

@@ -9,8 +9,8 @@
 
 #define H1 1e-1
 
-template<typename value_type_node>
-void fix_some_nodes( Nodes<value_type_node> &nodes, std::vector<int> &fixed_nodes) {
+template<typename value_type_nodes>
+void fix_some_nodes( Nodes<value_type_nodes> &nodes, std::vector<int> &fixed_nodes) {
     for (int i = 0; i < nodes.n_size; i++) {
         if (nodes.p_y[i] >= 0.8) {
             fixed_nodes.push_back(i);
@@ -18,8 +18,64 @@ void fix_some_nodes( Nodes<value_type_node> &nodes, std::vector<int> &fixed_node
     }
 }
 
+template<typename value_type_nodes, typename value_type_springs>
+void create_cloth( Nodes<value_type_nodes> &nodes,  Springs<value_type_springs> &springs, std::vector<int> &fixed_nodes) {
+    // -> create nodes
+    int n = 50;
+    int n_nodes = n*n;
+    nodes.init(n_nodes);
+    for (int i = 0; i < n; i++){
+        for (int j = 0; j < n; j++){
+            value_type_nodes px = (value_type_nodes)j/(value_type_nodes)n;
+            value_type_nodes py = 1.0 - (value_type_nodes)i/(value_type_nodes)n;
+            value_type_nodes pz = 0;
+            nodes.set(i*n + j, px, py, pz, 0, 0, 0, 1.0);
+        }
+    }
+    // <-
+
+    // -> create springs
+    int n_springs = 3*(n-1)*(n-1) + 2*(n-1);
+
+    typedef Eigen::Triplet<value_type_nodes> Triplet;
+    std::vector<Triplet> coo_A;
+    int i_counter = 0;
+    for (int i = 0; i < n; i++){
+        for (int j = 0; j < n; j++){
+            int k = i*n + j;
+            value_type_nodes a = i*n + (j + 1);
+            value_type_nodes b = (i + 1)*n + j;
+            value_type_nodes c = (i + 1)*n + (j + 1);
+            if (j + 1 < n) {
+                coo_A.push_back(Triplet(k, i_counter, -1));
+                coo_A.push_back(Triplet(a, i_counter, 1));
+                i_counter++;
+            } 
+            if (i + 1 < n) {          
+                coo_A.push_back(Triplet(k, i_counter, -1));
+                coo_A.push_back(Triplet(b, i_counter, 1));
+                i_counter++;
+            }
+            if (i + 1 < n && j + 1 < n) {
+                coo_A.push_back(Triplet(k, i_counter, -1));
+                coo_A.push_back(Triplet(c, i_counter, 1));
+                i_counter++;
+            }
+        }
+    }
+    assert(n_springs == i_counter);
+    springs.init(n_nodes, n_springs);
+    springs.A.setFromTriplets(coo_A.begin(), coo_A.end());
+    springs.K.setIdentity();
+    springs.K = springs.K*2.0f; 
+    // <-
+}
+
+
+
 MSNWorld::MSNWorld() : World() {
-    load_mesh_ply2<float>("/home/amon/grive/development/MassSpringNetwork/data/canstick.ply2", nodes, springs);
+    //load_mesh_ply2<float>("/home/amon/grive/development/MassSpringNetwork/data/canstick.ply2", nodes, springs);
+    create_cloth<float>(nodes, springs, fixed_nodes);
     normalize_and_recenter_nodes<float>(nodes);
     springs.set_as_equilibrium(nodes.p_x, nodes.p_y, nodes.p_z);
     px_rhs.resize(nodes.n_size);
@@ -31,15 +87,17 @@ MSNWorld::MSNWorld() : World() {
     d_rhs.resize(springs.n_size);
     M.resize(nodes.n_size, nodes.n_size);
     M.setIdentity();
-    fix_some_nodes(nodes, fixed_nodes);
-    for (int i : fixed_nodes) {
-        M.valuePtr()[i] = 1e6;        
-    }
+    tswing = H1*0.1;
+    // fix_some_nodes(nodes, fixed_nodes);
+    // for (int i : fixed_nodes) {
+    //     M.valuePtr()[i] = 1e6;        
+    // }
+    M.valuePtr()[0] = 1e6;
+    M.valuePtr()[49] = 1e6;
+
     J = springs.A*springs.K;
     Q = M + (SparseMatrix<float>)((float)(H1*H1)*springs.A*springs.K*springs.A.transpose());
-    //std::cout << Q << std::endl;
-    //sp_mm1_mul(springs.A, springs.k, J);
-    //sp_mm1_add(springs.AA, nodes.m, L, (float)(H1*H1));
+
     chol.compute(Q);
     init_shader();
     init_shape();
@@ -59,7 +117,7 @@ MSNWorld &MSNWorld::get_instance() {
 void MSNWorld::init_shape() {
     glm::mat4 trans_mat = glm::translate(glm::mat4(1), glm::vec3(0, 0, 0));
     vao.model_matrix = trans_mat * glm::scale(glm::mat4(1), glm::vec3(0.5));
-    vao.shape = ga::Shape::make_sphere(0.01f);
+    vao.shape = ga::Shape::make_sphere(0.005f);
 }
 
 void MSNWorld::init_shader() {
@@ -172,16 +230,23 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     glm::vec3 axis(std::sin(t), std::cos(t), 0);
     glm::mat4 rot = glm::rotate(ms_per_frame/1000.0f, axis);
     vao.model_matrix = rot*vao.model_matrix;
-
+    
     float h = (float)(H1);
     float h2 = (float)(H1*H1);
-    Vector<float> fgravity =  Eigen::MatrixXf::Constant(nodes.n_size, 1, -0.01f);
+    Vector<float> fgravity =  Eigen::MatrixXf::Constant(nodes.n_size, 1, -0.0005f);
     // Vector<float> fgravity =  Eigen::MatrixXf::Constant(nodes.n_size, 1, 0.0f);
 
+    if (std::abs(nodes.p_z[0]) > 0.5) {
+        tswing = -tswing;
+        nodes.p_z[0] += tswing;
+        nodes.p_z[49] += tswing;   
+    }
+    nodes.p_z[0] += tswing;
+    nodes.p_z[49] += tswing;
 
-    nodes.q_x = nodes.p_x + nodes.v_x*h*(1.0f - h*0.5f); 
-    nodes.q_y = nodes.p_y + nodes.v_y*h*(1.0f - h*0.5f);
-    nodes.q_z = nodes.p_z + nodes.v_z*h*(1.0f - h*0.5f);
+    nodes.q_x = nodes.p_x + nodes.v_x*h*(1.0f - h*0.1f); 
+    nodes.q_y = nodes.p_y + nodes.v_y*h*(1.0f - h*0.1f);
+    nodes.q_z = nodes.p_z + nodes.v_z*h*(1.0f - h*0.1f);
 
     nodes.v_x = nodes.p_x;
     nodes.v_y = nodes.p_y;
@@ -191,7 +256,7 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     nodes.p_y = nodes.q_y;
     nodes.p_z = nodes.q_z;
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 10; i++) {
         dx_rhs = nodes.p_x.transpose()*J;
         dy_rhs = nodes.p_y.transpose()*J;
         dz_rhs = nodes.p_z.transpose()*J;
@@ -215,6 +280,7 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     nodes.v_x = (nodes.p_x - nodes.v_x)/h;
     nodes.v_y = (nodes.p_y - nodes.v_y)/h;
     nodes.v_z = (nodes.p_z - nodes.v_z)/h;
+    
     gather_for_rendering();
 }
 

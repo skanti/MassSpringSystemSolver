@@ -180,9 +180,9 @@ void normalize_and_recenter_nodes( Nodes<value_type_node> &nodes) {
 
     // -> shift
     for (int i = 0; i < nodes.n_size; i++) {
-        nodes.p_x[i] += com_x;
-        nodes.p_y[i] += com_y;
-        nodes.p_z[i] += com_z;
+        nodes.p_x[i] -= com_x;
+        nodes.p_y[i] -= com_y;
+        nodes.p_z[i] -= com_z;
     }
     // <-
 }
