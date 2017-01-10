@@ -1,24 +1,33 @@
 #pragma once
 
 #include <cstdlib>
+#include <cassert>
 #include "Common.h"
 
 template<typename value_type>
 struct Springs {
 
-    void init(int32_t n_nodes, int32_t n_springs) {
-        n_size = n_springs;
-        k.resize(n_springs);
-        rd.resize(n_springs);
-        dx.resize(n_springs);
-        dy.resize(n_springs);
-        dz.resize(n_springs);
-        K.resize(n_springs, n_springs);
-        A.resize(n_nodes, n_springs);
+    void reserve(int32_t n_size_reserve_) {
+        n_size = 0;
+        n_size_reserve = n_size_reserve_;
+        k.resize(n_size_reserve);
+        d.resize(n_size_reserve);
+        dx.resize(n_size_reserve);
+        dy.resize(n_size_reserve);
+        dz.resize(n_size_reserve);
+        d_rhs.resize(n_size_reserve);
+        dx_rhs.resize(n_size_reserve);
+        dy_rhs.resize(n_size_reserve);
+        dz_rhs.resize(n_size_reserve);
     }
     
 
-    void set_as_equilibrium(Vector<value_type> &px, Vector<value_type> &py, Vector<value_type> &pz) {
+    void init(int32_t n_size_) {
+        assert(n_size_ <= n_size_reserve);
+        n_size = n_size_;
+    }
+
+    void set_as_equilibrium(Vector<value_type> &px, Vector<value_type> &py, Vector<value_type> &pz, SparseMatrix<value_type> &A) {
         for (int j = 0; j < n_size; j++) {
             int pi0 = A.outerIndexPtr()[j];
             int a = A.innerIndexPtr()[pi0];
@@ -26,20 +35,23 @@ struct Springs {
             value_type dxj = -px[a] + px[b];
             value_type dyj = -py[a] + py[b];
             value_type dzj = -pz[a] + pz[b];
-            rd[j] = std::sqrt(dxj*dxj + dyj*dyj + dzj*dzj);
-            dx[j] = dxj/rd[j];
-            dy[j] = dyj/rd[j];
-            dz[j] = dzj/rd[j];
+            d[j] = std::sqrt(dxj*dxj + dyj*dyj + dzj*dzj);
+            dx[j] = dxj/d[j];
+            dy[j] = dyj/d[j];
+            dz[j] = dzj/d[j];
         }    
     }
 
     int32_t n_size;
+    int32_t n_size_reserve;
     Vector<value_type> k;
-    Vector<value_type> rd;
+    Vector<value_type> d;
     Vector<value_type> dx;
     Vector<value_type> dy;
     Vector<value_type> dz;
-    SparseMatrix<value_type> K;
-    SparseMatrix<value_type> A;
+    Vector<value_type> d_rhs;
+    Vector<value_type> dx_rhs;
+    Vector<value_type> dy_rhs;
+    Vector<value_type> dz_rhs;
 };
 

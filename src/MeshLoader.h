@@ -12,8 +12,8 @@
 #include "Common.h"
 
 
-template<typename value_type_node, typename value_type_spring>
-static void load_mesh_ply2(std::string file, Nodes<value_type_node> &nodes, Springs<value_type_spring> &springs) {
+template<typename value_type_nodes, typename value_type_springs>
+static void load_mesh_ply2(std::string file, Nodes<value_type_nodes> &nodes, Springs<value_type_springs> &springs, SparseMatrix<value_type_springs> &A) {
 	
 	// -> read header
     int n_nodes, n_triangles;
@@ -31,7 +31,7 @@ static void load_mesh_ply2(std::string file, Nodes<value_type_node> &nodes, Spri
     // -> reserve node memory
     nodes.init(n_nodes);
     for (int i = 0; i < n_nodes; i++) {
-    	value_type_node px, py, pz;
+    	value_type_nodes px, py, pz;
     	std::getline(infile, line);
     	std::stringstream(line) >> px >> py >> pz;
     	nodes.set(i, px, py, pz, 0, 0, 0, 1.0);
@@ -55,28 +55,27 @@ static void load_mesh_ply2(std::string file, Nodes<value_type_node> &nodes, Spri
 
     // -> create spring sparse matrices
     int n_springs = hashmap.size();
-    springs.init(n_nodes, n_springs);
-    typedef Eigen::Triplet<value_type_node> Triplet;
+    springs.init(n_springs);
+    typedef Eigen::Triplet<value_type_nodes> Triplet;
     std::vector<Triplet> coo_A, coo_K;
     int i = 0;
     for (auto itr = hashmap.begin(); itr != hashmap.end(); itr++, i++) {
     	int64_t key = itr->first;
     	int32_t a = key >> 32;
     	int32_t b = key >> 0;
-        value_type_spring k = 10.0;
+        value_type_springs k = 10.0;
         springs.k[i] = k;
         coo_K.push_back(Triplet(i, i, k));
     	coo_A.push_back(Triplet(a, i, -1));
         coo_A.push_back(Triplet(b, i,  1));
     }
-    springs.A.setFromTriplets(coo_A.begin(), coo_A.end());
-    springs.K.setFromTriplets(coo_K.begin(), coo_K.end());
+    A.setFromTriplets(coo_A.begin(), coo_A.end());
     // <-
 }
 
 
-template<typename value_type_node, typename value_type_spring>
-static void load_mesh_ply(std::string file, Nodes<value_type_node> &nodes, Springs<value_type_spring> &springs) {
+template<typename value_type_nodes, typename value_type_springs>
+static void load_mesh_ply(std::string file, Nodes<value_type_nodes> &nodes, Springs<value_type_springs> &springs, SparseMatrix<value_type_springs> &A) {
     
     // -> read header
     int n_nodes, n_triangles;
@@ -104,7 +103,7 @@ static void load_mesh_ply(std::string file, Nodes<value_type_node> &nodes, Sprin
     // -> reserve node memory
     nodes.init(n_nodes);
     for (int i = 0; i < n_nodes; i++) {
-        value_type_node px, py, pz;
+        value_type_nodes px, py, pz;
         std::getline(infile, line);
         std::stringstream(line) >> px >> py >> pz;
         nodes.set(i, px, py, pz, 0, 0, 0, 1.0);
@@ -128,61 +127,110 @@ static void load_mesh_ply(std::string file, Nodes<value_type_node> &nodes, Sprin
 
     // -> create spring sparse matrices
     int n_springs = hashmap.size();
-    springs.init(n_nodes, n_springs);
-    typedef Eigen::Triplet<value_type_node> Triplet;
+    springs.init(n_springs);
+    typedef Eigen::Triplet<value_type_nodes> Triplet;
     std::vector<Triplet> coo_A, coo_K;
     int i = 0;
     for (auto itr = hashmap.begin(); itr != hashmap.end(); itr++, i++) {
         int64_t key = itr->first;
         int32_t a = key >> 32;
         int32_t b = key >> 0;
-        value_type_spring k = 10.0;
+        value_type_springs k = 10.0;
         springs.k[i] = k;
         coo_K.push_back(Triplet(i, i, k));
         coo_A.push_back(Triplet(a, i, -1));
         coo_A.push_back(Triplet(b, i,  1));
     }
     springs.A.setFromTriplets(coo_A.begin(), coo_A.end());
-    springs.K.setFromTriplets(coo_K.begin(), coo_K.end());
     // <-
 }
 
 
-template<typename value_type_node>
-void normalize_and_recenter_nodes( Nodes<value_type_node> &nodes) {
+template<typename value_type_nodes>
+void normalize_and_recenter_nodes( Nodes<value_type_nodes> &nodes) {
     // -> find min max alue
-    auto ix_minmax  = std::minmax_element(&nodes.p_x[0], &nodes.p_x[0] + nodes.n_size);
-    auto iy_minmax  = std::minmax_element(&nodes.p_y[0], &nodes.p_y[0] + nodes.n_size);
-    auto iz_minmax  = std::minmax_element(&nodes.p_z[0], &nodes.p_z[0] + nodes.n_size);
+    auto ix_minmax  = std::minmax_element(&nodes.px[0], &nodes.px[0] + nodes.n_size);
+    auto iy_minmax  = std::minmax_element(&nodes.py[0], &nodes.py[0] + nodes.n_size);
+    auto iz_minmax  = std::minmax_element(&nodes.pz[0], &nodes.pz[0] + nodes.n_size);
     // <-
 
     // -> find abs maximum
-    value_type_node px_absmax = std::max(std::abs(ix_minmax.first[0]), std::abs(ix_minmax.second[0]));
-    value_type_node py_absmax = std::max(std::abs(iy_minmax.first[0]), std::abs(iy_minmax.second[0]));
-    value_type_node pz_absmax = std::max(std::abs(iz_minmax.first[0]), std::abs(iz_minmax.second[0]));
-    value_type_node p_max = std::max(px_absmax,  std::max(py_absmax, pz_absmax));
+    value_type_nodes px_absmax = std::max(std::abs(ix_minmax.first[0]), std::abs(ix_minmax.second[0]));
+    value_type_nodes py_absmax = std::max(std::abs(iy_minmax.first[0]), std::abs(iy_minmax.second[0]));
+    value_type_nodes pz_absmax = std::max(std::abs(iz_minmax.first[0]), std::abs(iz_minmax.second[0]));
+    value_type_nodes p_max = std::max(px_absmax,  std::max(py_absmax, pz_absmax));
     // <-
 
     // -> normalize
-    value_type_node com_x = 0, com_y = 0, com_z = 0;
+    value_type_nodes com_x = 0, com_y = 0, com_z = 0;
     for (int i = 0; i < nodes.n_size; i++) {
-        nodes.p_x[i] /= p_max;
-        com_x += nodes.p_x[i];
-        nodes.p_y[i] /= p_max;
-        com_y += nodes.p_y[i];
-        nodes.p_z[i] /= p_max;
-        com_z += nodes.p_z[i];
+        nodes.px[i] /= p_max;
+        com_x += nodes.px[i];
+        nodes.py[i] /= p_max;
+        com_y += nodes.py[i];
+        nodes.pz[i] /= p_max;
+        com_z += nodes.pz[i];
     }
-    com_x /= (value_type_node) nodes.n_size;
-    com_y /= (value_type_node) nodes.n_size;
-    com_z /= (value_type_node) nodes.n_size;
+    com_x /= (value_type_nodes) nodes.n_size;
+    com_y /= (value_type_nodes) nodes.n_size;
+    com_z /= (value_type_nodes) nodes.n_size;
     // <- 
 
     // -> shift
     for (int i = 0; i < nodes.n_size; i++) {
-        nodes.p_x[i] -= com_x;
-        nodes.p_y[i] -= com_y;
-        nodes.p_z[i] -= com_z;
+        nodes.px[i] -= com_x;
+        nodes.py[i] -= com_y;
+        nodes.pz[i] -= com_z;
     }
+    // <-
+}
+
+
+template<typename value_type_nodes, typename value_type_springs>
+void create_cloth( Nodes<value_type_nodes> &nodes,  Springs<value_type_springs> &springs, SparseMatrix<value_type_springs> &A, int n) {
+    // -> create nodes
+    int n_nodes = n*n;
+    nodes.init(n_nodes);
+    for (int i = 0; i < n; i++){
+        for (int j = 0; j < n; j++){
+            value_type_nodes px = (value_type_nodes)j/(value_type_nodes)n;
+            value_type_nodes py = 1.0 - (value_type_nodes)i/(value_type_nodes)n;
+            value_type_nodes pz = 0;
+            nodes.set(i*n + j, px, py, pz, 0, 0, 0, 1.0);
+        }
+    }
+    // <-
+
+    // -> create springs
+    int n_springs = 3*(n-1)*(n-1) + 2*(n-1);
+    typedef Eigen::Triplet<value_type_nodes> Triplet;
+    std::vector<Triplet> coo_A;
+    int i_counter = 0;
+    for (int i = 0; i < n; i++){
+        for (int j = 0; j < n; j++){
+            int k = i*n + j;
+            value_type_nodes a = i*n + (j + 1);
+            value_type_nodes b = (i + 1)*n + j;
+            value_type_nodes c = (i + 1)*n + (j + 1);
+            if (j + 1 < n) {
+                coo_A.push_back(Triplet(k, i_counter, -1));
+                coo_A.push_back(Triplet(a, i_counter, 1));
+                i_counter++;
+            } 
+            if (i + 1 < n) {          
+                coo_A.push_back(Triplet(k, i_counter, -1));
+                coo_A.push_back(Triplet(b, i_counter, 1));
+                i_counter++;
+            }
+            if (i + 1 < n && j + 1 < n) {
+                coo_A.push_back(Triplet(k, i_counter, -1));
+                coo_A.push_back(Triplet(c, i_counter, 1));
+                i_counter++;
+            }
+        }
+    }
+    assert(n_springs == i_counter);
+    springs.init(n_springs);
+    A.setFromTriplets(coo_A.begin(), coo_A.end());
     // <-
 }
