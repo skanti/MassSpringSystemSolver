@@ -8,8 +8,8 @@
 #include "Timer.h"
 
 const float dt = 0.1;
-#define N_MAX_NODES 1000
-#define N_MAX_SPRINGS 1000
+#define N_MAX_NODES 10000
+#define N_MAX_SPRINGS 20000
 
 MSNWorld::MSNWorld() : World() {
     zoom = 0.7f;
@@ -28,7 +28,7 @@ MSNWorld::MSNWorld() : World() {
 
     // -> load and set mesh
     //load_mesh_ply2<float>("/dtome/amon/grive/development/MassSpringNetwork/data/canstick.ply2", nodes, springs);
-    create_cloth<float>(nodes, springs, A, 10);
+    create_cloth<float>(nodes, springs, A, 30);
     normalize_and_recenter_nodes<float>(nodes);
     springs.set_as_equilibrium(nodes.px, nodes.py, nodes.pz, A);
     // <-
@@ -41,7 +41,7 @@ MSNWorld::MSNWorld() : World() {
     //     M.valuePtr()[i] = 1e6;        
     // }
     M.valuePtr()[0] = 1e6;
-    M.valuePtr()[9] = 1e6;
+    M.valuePtr()[29] = 1e6;
     fgravity = Eigen::MatrixXf::Constant(N_MAX_NODES, 1, -0.001f);
 
     J.leftCols(springs.n_size) = A.leftCols(springs.n_size);
@@ -207,9 +207,9 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     nodes.pz.block(0, 0, nodes.n_size, 1) = nodes.qz.block(0, 0, nodes.n_size, 1);
 
     for (int i = 0; i < 10; i++) {
-        springs.dx_rhs.block(0, 0, springs.n_size, 1) = J.block(0, 0, nodes.n_size, springs.n_size).transpose()*nodes.px.block(0, 0, nodes.n_size, 1);
-        springs.dy_rhs.block(0, 0, springs.n_size, 1) = J.block(0, 0, nodes.n_size, springs.n_size).transpose()*nodes.py.block(0, 0, nodes.n_size, 1);
-        springs.dz_rhs.block(0, 0, springs.n_size, 1) = J.block(0, 0, nodes.n_size, springs.n_size).transpose()*nodes.pz.block(0, 0, nodes.n_size, 1);
+        springs.dx_rhs.block(0, 0, springs.n_size, 1) = (nodes.px.block(0, 0, nodes.n_size, 1).transpose()*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
+        springs.dy_rhs.block(0, 0, springs.n_size, 1) = (nodes.py.block(0, 0, nodes.n_size, 1).transpose()*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
+        springs.dz_rhs.block(0, 0, springs.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1).transpose()*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
 
         for (int j = 0; j < springs.n_size; j++) {
             springs.d_rhs[j] = std::sqrt(springs.dx_rhs[j]*springs.dx_rhs[j] + springs.dy_rhs[j]*springs.dy_rhs[j] + springs.dz_rhs[j]*springs.dz_rhs[j]);
