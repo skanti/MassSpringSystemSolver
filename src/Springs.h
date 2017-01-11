@@ -36,7 +36,6 @@ struct Springs {
         int pi0 = A.outerIndexPtr()[j];
         int a = A.innerIndexPtr()[pi0];
         int b = A.innerIndexPtr()[pi0 + 1];
-        std::cout << px[a] << " " << px[b] << std::endl;
         value_type dxj = -px[a] + px[b];
         value_type dyj = -py[a] + py[b];
         value_type dzj = -pz[a] + pz[b];

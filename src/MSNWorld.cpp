@@ -8,8 +8,8 @@
 #include "Timer.h"
 
 const float dt = 0.1;
-#define N_MAX_NODES 6
-#define N_MAX_SPRINGS 8
+#define N_MAX_NODES 1000
+#define N_MAX_SPRINGS 1000
 
 MSNWorld::MSNWorld() : World() {
     zoom = 0.7f;
@@ -28,7 +28,7 @@ MSNWorld::MSNWorld() : World() {
 
     // -> load and set mesh
     //load_mesh_ply2<float>("/dtome/amon/grive/development/MassSpringNetwork/data/canstick.ply2", nodes, springs);
-    create_cloth<float>(nodes, springs, A, 2);
+    create_cloth<float>(nodes, springs, A, 10);
     normalize_and_recenter_nodes<float>(nodes);
     springs.set_as_equilibrium(nodes.px, nodes.py, nodes.pz, A);
     // <-
@@ -41,8 +41,8 @@ MSNWorld::MSNWorld() : World() {
     //     M.valuePtr()[i] = 1e6;        
     // }
     M.valuePtr()[0] = 1e6;
-    M.valuePtr()[1] = 1e6;
-    fgravity = Eigen::MatrixXf::Constant(nodes.n_size, 1, -0.1f);
+    M.valuePtr()[9] = 1e6;
+    fgravity = Eigen::MatrixXf::Constant(N_MAX_NODES, 1, -0.001f);
 
     J.leftCols(springs.n_size) = A.leftCols(springs.n_size);
     Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<float>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
@@ -137,14 +137,6 @@ void MSNWorld::draw() {
     glUseProgram(mass_spring_program.id);
     glBindVertexArray(vao.vao_id);
 
-    // -> draw springs
-    glVertexAttribDivisor(1, 0);
-    glUniform1i(mass_spring_program.uniform("mode"), 1);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao.vbo_springs_id);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2*springs.n_size*sizeof(GLuint), vao.s_ab.data(), GL_DYNAMIC_DRAW);
-    glDrawElements(GL_LINES, 2*springs.n_size, GL_UNSIGNED_INT, 0);
-    // <-
-
     // -> draw nodes
     glUniform1i(mass_spring_program.uniform("mode"), 0);
     glVertexAttribDivisor(1, 1);
@@ -155,6 +147,16 @@ void MSNWorld::draw() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao.vbo_shape_index_id);
     glDrawElementsInstanced(GL_TRIANGLES, 3*vao.shape.n_segments, GL_UNSIGNED_INT, 0, nodes.n_size);
     // <-
+
+
+    // -> draw springs
+    glVertexAttribDivisor(1, 0);
+    glUniform1i(mass_spring_program.uniform("mode"), 1);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao.vbo_springs_id);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2*springs.n_size*sizeof(GLuint), vao.s_ab.data(), GL_DYNAMIC_DRAW);
+    glDrawElements(GL_LINES, 2*springs.n_size, GL_UNSIGNED_INT, 0);
+    // <-
+
 };
 
 void MSNWorld::gather_for_rendering() {
@@ -166,9 +168,9 @@ void MSNWorld::gather_for_rendering() {
     }
 
    for (int j = 0; j < springs.n_size; j++) {
-        int pi0 = A.outerIndexPtr()[j];
-        int a = A.innerIndexPtr()[pi0];
-        int b = A.innerIndexPtr()[pi0 + 1];
+        int pi0 = J.outerIndexPtr()[j];
+        int a = J.innerIndexPtr()[pi0];
+        int b = J.innerIndexPtr()[pi0 + 1];
         vao.s_ab[j*2] = a;
         vao.s_ab[j*2+1] = b;
     } 
@@ -234,18 +236,26 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
 }
 
 void MSNWorld::spawn_nodes(float px, float py) {
-    if (nodes.n_size <= N_MAX_NODES) {
+    if (nodes.n_size < N_MAX_NODES && springs.n_size < N_MAX_SPRINGS) {
         nodes.set(nodes.n_size, px, py, 0, 0, 0, 0, 1.0f);
         nodes.n_size++;
 
-        J.insert(0, 5) = -1;
-        J.insert(4, 5) = 1;
+        J.insert(nodes.n_size - 2, springs.n_size) = -1;
+        J.insert(nodes.n_size - 1, springs.n_size) = 1;
         springs.n_size++;
-        std::cout << J << std::endl;    
+        
         J.makeCompressed();
-        springs.set_as_equilibrium1(nodes.px, nodes.py, nodes.pz, J, 5);
+
+        springs.set_as_equilibrium1(nodes.px, nodes.py, nodes.pz, J, springs.n_size-1);
         Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<float>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
         chol.compute(Q.block(0,0, nodes.n_size, nodes.n_size));
+
+        // Eigen::IOFormat CleanFmt(2, 0, ", ", "\n", "[", "]");
+        // Eigen::Matrix<float, N_MAX_NODES, N_MAX_NODES> Q1 = Q;
+        // Eigen::Matrix<float, N_MAX_NODES, N_MAX_SPRINGS> J1 = J;
+        // std::cout << J1.format(CleanFmt) << std::endl << std::endl;
+        // std::cout << Q1.format(CleanFmt) << std::endl << std::endl;
+
     }
 }
 
