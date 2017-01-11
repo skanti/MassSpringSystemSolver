@@ -28,18 +28,22 @@ struct Springs {
     }
 
     void set_as_equilibrium(Vector<value_type> &px, Vector<value_type> &py, Vector<value_type> &pz, SparseMatrix<value_type> &A) {
-        for (int j = 0; j < n_size; j++) {
-            int pi0 = A.outerIndexPtr()[j];
-            int a = A.innerIndexPtr()[pi0];
-            int b = A.innerIndexPtr()[pi0 + 1];
-            value_type dxj = -px[a] + px[b];
-            value_type dyj = -py[a] + py[b];
-            value_type dzj = -pz[a] + pz[b];
-            d[j] = std::sqrt(dxj*dxj + dyj*dyj + dzj*dzj);
-            dx[j] = dxj/d[j];
-            dy[j] = dyj/d[j];
-            dz[j] = dzj/d[j];
-        }    
+        for (int j = 0; j < n_size; j++)
+             set_as_equilibrium1(px, py, pz, A, j);
+    }
+
+    void set_as_equilibrium1(Vector<value_type> &px, Vector<value_type> &py, Vector<value_type> &pz, SparseMatrix<value_type> &A, int j) {
+        int pi0 = A.outerIndexPtr()[j];
+        int a = A.innerIndexPtr()[pi0];
+        int b = A.innerIndexPtr()[pi0 + 1];
+        std::cout << px[a] << " " << px[b] << std::endl;
+        value_type dxj = -px[a] + px[b];
+        value_type dyj = -py[a] + py[b];
+        value_type dzj = -pz[a] + pz[b];
+        d[j] = std::sqrt(dxj*dxj + dyj*dyj + dzj*dzj);
+        dx[j] = dxj/d[j];
+        dy[j] = dyj/d[j];
+        dz[j] = dzj/d[j];
     }
 
     int32_t n_size;
