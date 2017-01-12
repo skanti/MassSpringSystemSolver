@@ -251,6 +251,7 @@ void MSNWorld::spawn_nodes(float px, float py) {
         J.innerIndexPtr()[ia+1] = nodes.n_size - 1;
         J.valuePtr()[ia] = -1;
         J.valuePtr()[ia+1] = 1;
+        springs.key[springs.n_size] = springs.n_size;
 
         springs.n_size++;
         
@@ -278,7 +279,7 @@ void MSNWorld::delete_nodes(float px, float py) {
             springs.swap(a, b, J);
         }
 
-        std::iota(&springs.key[0], &springs.key[0] + springs.n_size_reserve, 0);
+        // std::iota(&springs.key[0], &springs.key[0] + springs.n_size, 0);
         Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<float>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
         chol.compute(Q.block(0,0, nodes.n_size, nodes.n_size));
 
