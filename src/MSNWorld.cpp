@@ -22,8 +22,8 @@ MSNWorld::MSNWorld() : World() {
     J.resize(N_MAX_NODES, N_MAX_SPRINGS);
     J1.reserve(2*N_MAX_SPRINGS);
     J1.resize(N_MAX_NODES, N_MAX_SPRINGS);
-    // int h1 = -2;
-    // std::generate(&J.outerIndexPtr()[0], &J.outerIndexPtr()[0] + N_MAX_SPRINGS + 1, [&h1]{h1 += 2; return h1;});
+    int h1 = -2;
+    std::generate(&J.outerIndexPtr()[0], &J.outerIndexPtr()[0] + N_MAX_SPRINGS + 1, [&h1]{h1 += 2; return h1;});
     Q.reserve(N_MAX_NODES + 2*N_MAX_SPRINGS);
     Q.resize(N_MAX_NODES, N_MAX_NODES);
     M.reserve(N_MAX_NODES);
@@ -244,13 +244,16 @@ void MSNWorld::spawn_nodes(float px, float py) {
         nodes.set(nodes.n_size, px, py, 0, 0, 0, 0, 1.0f);
         nodes.n_size++;
 
-        J.coeffRef(nodes.n_size - 2, springs.n_size) = -1;
-        J.coeffRef(nodes.n_size - 1, springs.n_size) = 1;
+        // J.coeffRef(nodes.n_size - 2, springs.n_size-1) = -1;
+        // J.coeffRef(nodes.n_size - 1, springs.n_size-1) = 1;
+        int ia = J.outerIndexPtr()[springs.n_size];
+        J.innerIndexPtr()[ia] = nodes.n_size - 2;
+        J.innerIndexPtr()[ia+1] = nodes.n_size - 1;
+        J.valuePtr()[ia] = -1;
+        J.valuePtr()[ia+1] = 1;
 
         springs.n_size++;
         
-        J.makeCompressed();
-
         springs.set_as_equilibrium1(nodes.px, nodes.py, nodes.pz, J, springs.n_size-1);
         Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<float>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
         chol.compute(Q.block(0,0, nodes.n_size, nodes.n_size));
@@ -275,7 +278,7 @@ void MSNWorld::delete_nodes(float px, float py) {
             springs.swap(a, b, J);
         }
 
-        // std::iota(&springs.key[0], &springs.key[0] + springs.n_size_reserve, 0);
+        std::iota(&springs.key[0], &springs.key[0] + springs.n_size_reserve, 0);
         Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<float>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
         chol.compute(Q.block(0,0, nodes.n_size, nodes.n_size));
 
