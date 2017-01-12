@@ -8,8 +8,8 @@
 #include "Timer.h"
 
 const float dt = 0.1;
-#define N_MAX_NODES 10000
-#define N_MAX_SPRINGS 20000
+#define N_MAX_NODES 10
+#define N_MAX_SPRINGS 20
 
 MSNWorld::MSNWorld() : World() {
     zoom = 0.7f;
@@ -20,6 +20,10 @@ MSNWorld::MSNWorld() : World() {
     A.resize(N_MAX_NODES, N_MAX_SPRINGS);
     J.reserve(2*N_MAX_SPRINGS);
     J.resize(N_MAX_NODES, N_MAX_SPRINGS);
+    J1.reserve(2*N_MAX_SPRINGS);
+    J1.resize(N_MAX_NODES, N_MAX_SPRINGS);
+    // int h1 = -2;
+    // std::generate(&J.outerIndexPtr()[0], &J.outerIndexPtr()[0] + N_MAX_SPRINGS + 1, [&h1]{h1 += 2; return h1;});
     Q.reserve(N_MAX_NODES + 2*N_MAX_SPRINGS);
     Q.resize(N_MAX_NODES, N_MAX_NODES);
     M.reserve(N_MAX_NODES);
@@ -28,11 +32,10 @@ MSNWorld::MSNWorld() : World() {
 
     // -> load and set mesh
     //load_mesh_ply2<float>("/dtome/amon/grive/development/MassSpringNetwork/data/canstick.ply2", nodes, springs);
-    create_cloth<float>(nodes, springs, A, 30);
+    create_cloth<float>(nodes, springs, A, 3);
     normalize_and_recenter_nodes<float>(nodes);
     springs.set_as_equilibrium(nodes.px, nodes.py, nodes.pz, A);
     // <-
-
 
     M.setIdentity();
     tswing = dt*0.1;
@@ -41,8 +44,8 @@ MSNWorld::MSNWorld() : World() {
     //     M.valuePtr()[i] = 1e6;        
     // }
     M.valuePtr()[0] = 1e6;
-    M.valuePtr()[29] = 1e6;
-    fgravity = Eigen::MatrixXf::Constant(N_MAX_NODES, 1, -0.001f);
+    M.valuePtr()[2] = 1e6;
+    fgravity = Eigen::MatrixXf::Constant(N_MAX_NODES, 1, -0.01f);
 
     J.leftCols(springs.n_size) = A.leftCols(springs.n_size);
     Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<float>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
@@ -232,6 +235,7 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     nodes.vy.block(0, 0, nodes.n_size, 1) = (nodes.py.block(0, 0, nodes.n_size, 1) - nodes.vy.block(0, 0, nodes.n_size, 1))/dt;
     nodes.vz.block(0, 0, nodes.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1) - nodes.vz.block(0, 0, nodes.n_size, 1))/dt;
 
+    J1.topRows(nodes.n_size) = J.leftCols(springs.n_size);
     gather_for_rendering();
 }
 
@@ -240,8 +244,9 @@ void MSNWorld::spawn_nodes(float px, float py) {
         nodes.set(nodes.n_size, px, py, 0, 0, 0, 0, 1.0f);
         nodes.n_size++;
 
-        J.insert(nodes.n_size - 2, springs.n_size) = -1;
-        J.insert(nodes.n_size - 1, springs.n_size) = 1;
+        J.coeffRef(nodes.n_size - 2, springs.n_size) = -1;
+        J.coeffRef(nodes.n_size - 1, springs.n_size) = 1;
+
         springs.n_size++;
         
         J.makeCompressed();
@@ -252,15 +257,37 @@ void MSNWorld::spawn_nodes(float px, float py) {
 
         // Eigen::IOFormat CleanFmt(2, 0, ", ", "\n", "[", "]");
         // Eigen::Matrix<float, N_MAX_NODES, N_MAX_NODES> Q1 = Q;
-        // Eigen::Matrix<float, N_MAX_NODES, N_MAX_SPRINGS> J1 = J;
-        // std::cout << J1.format(CleanFmt) << std::endl << std::endl;
+        // Eigen::Matrix<float, N_MAX_NODES, N_MAX_SPRINGS> J2 = J1;
+        // std::cout << J2.format(CleanFmt) << std::endl << std::endl;
         // std::cout << Q1.format(CleanFmt) << std::endl << std::endl;
 
     }
 }
 
+void MSNWorld::delete_nodes(float px, float py) {
+        
+        nodes.n_size--;
+
+        for (int i = J1.outerIndexPtr()[nodes.n_size]; i < J1.outerIndexPtr()[nodes.n_size + 1]; i++) {
+            springs.n_size--;
+            int a = springs.key[J1.innerIndexPtr()[i]];
+            int b = springs.n_size;
+            springs.swap(a, b, J);
+        }
+
+        // std::iota(&springs.key[0], &springs.key[0] + springs.n_size_reserve, 0);
+        Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<float>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
+        chol.compute(Q.block(0,0, nodes.n_size, nodes.n_size));
+
+        // Eigen::IOFormat CleanFmt(2, 0, ", ", "\n", "[", "]");
+        // Eigen::Matrix<float, N_MAX_NODES, N_MAX_SPRINGS> J2 = J1;
+        // std::cout << J2.format(CleanFmt) << std::endl << std::endl;
+        // Eigen::Matrix<float, N_MAX_NODES, N_MAX_NODES> Q1 = Q;
+        // std::cout << Q1.format(CleanFmt) << std::endl << std::endl;
+
+}
 void MSNWorld::mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
-    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+    if (action == GLFW_PRESS) {
         double px_target, py_target;
         ga::Engine::get_instance().get_cursor_position(&px_target, &py_target);
         px_target = px_target*2.0f / ga::WindowManager::width_window - 1.0f;
@@ -268,7 +295,11 @@ void MSNWorld::mouse_button_callback(GLFWwindow *window, int button, int action,
         glm::mat4 z = glm::scale(glm::mat4(1), glm::vec3(get_instance().zoom));
         glm::mat4 t = glm::translate(glm::mat4(1), glm::vec3(0, 0, 0));
         glm::vec4 p = glm::inverse(z)*t*glm::vec4(px_target, py_target, 0, 1);
-        get_instance().spawn_nodes(p[0], p[1]);
+        if (button == GLFW_MOUSE_BUTTON_LEFT) {
+            get_instance().spawn_nodes(p[0], p[1]);
+        } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+            get_instance().delete_nodes(p[0], p[1]);
+        }
     }
 }
 

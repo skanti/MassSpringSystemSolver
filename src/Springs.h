@@ -11,6 +11,7 @@ struct Springs {
         n_size = 0;
         n_size_reserve = n_size_reserve_;
         k.resize(n_size_reserve);
+        key.resize(n_size_reserve);
         d.resize(n_size_reserve);
         dx.resize(n_size_reserve);
         dy.resize(n_size_reserve);
@@ -25,6 +26,26 @@ struct Springs {
     void init(int32_t n_size_) {
         assert(n_size_ <= n_size_reserve);
         n_size = n_size_;
+    }
+
+    void swap(int32_t a, int32_t b, SparseMatrix<value_type> &A) {
+        key[a] = b;
+        key[b] = a;
+        int ia = A.outerIndexPtr()[a];
+        int ib = A.outerIndexPtr()[b];
+        std::swap(A.innerIndexPtr()[ia], A.innerIndexPtr()[ib]);
+        std::swap(A.innerIndexPtr()[ia+1], A.innerIndexPtr()[ib+1]);
+        std::swap(A.valuePtr()[ia], A.valuePtr()[ib]);
+        std::swap(A.valuePtr()[ia+1], A.valuePtr()[ib+1]);
+        std::swap(k[a], k[b]);
+        std::swap(d[a], d[b]);
+        std::swap(dx[a], dx[b]);
+        std::swap(dy[a], dy[b]);
+        std::swap(dz[a], dz[b]);
+        std::swap(dx_rhs[a], dx_rhs[b]);
+        std::swap(dy_rhs[a], dy_rhs[b]);
+        std::swap(dz_rhs[a], dz_rhs[b]);
+        std::swap(d_rhs[a], d_rhs[b]);
     }
 
     void set_as_equilibrium(Vector<value_type> &px, Vector<value_type> &py, Vector<value_type> &pz, SparseMatrix<value_type> &A) {
@@ -47,6 +68,7 @@ struct Springs {
 
     int32_t n_size;
     int32_t n_size_reserve;
+    Vector<value_type> key;
     Vector<value_type> k;
     Vector<value_type> d;
     Vector<value_type> dx;

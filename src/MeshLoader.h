@@ -231,6 +231,7 @@ void create_cloth( Nodes<value_type_nodes> &nodes,  Springs<value_type_springs> 
     }
     assert(n_springs == i_counter);
     springs.init(n_springs);
+    std::iota(&springs.key[0], &springs.key[0] + springs.n_size_reserve, 0);
     A.setFromTriplets(coo_A.begin(), coo_A.end());
     // <-
 }

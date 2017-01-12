@@ -38,6 +38,8 @@ public:
 
     void spawn_nodes(float px, float py);
 
+    void delete_nodes(float px, float py);
+
 private:
     float tswing;
     float zoom;
@@ -48,6 +50,7 @@ private:
     Springs<float> springs;
     SparseMatrix<float> A;
     SparseMatrix<float> J;
+    SparseMatrixCSR<float> J1;
     SparseMatrix<float> Q;
     SparseMatrix<float> Qinv;
     SparseMatrix<float> M;

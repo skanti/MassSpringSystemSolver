@@ -11,4 +11,7 @@ template <typename T>
 using SparseMatrix = Eigen::SparseMatrix<T>;
 
 template <typename T>
+using SparseMatrixCSR = Eigen::SparseMatrix<T, Eigen::RowMajor, int>;
+
+template <typename T>
 using Triplet = Eigen::Triplet<T>;
