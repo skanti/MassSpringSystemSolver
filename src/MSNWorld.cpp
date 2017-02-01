@@ -17,6 +17,7 @@ MSNWorld::MSNWorld() : World() {
     // -> reserve memory
     nodes.reserve(N_MAX_NODES);
     springs.reserve(N_MAX_SPRINGS);
+    T.resize(13 + 3 + 1);
     A.reserve(2*N_MAX_SPRINGS);
     A.resize(N_MAX_NODES, N_MAX_SPRINGS);
     J.reserve(2*N_MAX_SPRINGS);
@@ -33,7 +34,7 @@ MSNWorld::MSNWorld() : World() {
 
     // -> load and set mesh
     //load_mesh_ply2<float>("/dtome/amon/grive/development/MassSpringNetwork/data/canstick.ply2", nodes, springs);
-    create_microtubule<float>(nodes, springs, A, 3);
+    create_microtubule<float>(nodes, springs, A, T, 3);
     normalize_and_recenter_nodes<float>(nodes);
     springs.set_as_equilibrium(nodes.px, nodes.py, nodes.pz, A);
     // <-
@@ -91,7 +92,7 @@ void MSNWorld::init_drawable() {
     glUniformMatrix4fv(mass_spring_program.uniform("ModelMatrix"), 1, GL_FALSE, &vao.model_matrix[0][0]);
     glUniformMatrix4fv(mass_spring_program.uniform("ViewMatrix"), 1, GL_FALSE, &ga::Visualization::view_window[0][0]);
     glUniformMatrix4fv(mass_spring_program.uniform("ProjectionMatrix"), 1, GL_FALSE, &ga::Visualization::projection_window[0][0]);
-    float nodes_color_alpha = 0.6;
+    float nodes_color_alpha = 0.8;
     glUniform1f(mass_spring_program.uniform("nodes_color_alpha"), nodes_color_alpha);
     float springs_color[] = {0.8f, 0.2f, 0.2f, 0.8f};
     glUniform4fv(mass_spring_program.uniform("springs_color"), 1, springs_color);
@@ -136,6 +137,7 @@ void MSNWorld::init_drawable() {
     // <-
 
     // -> culling options
+    glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
     // <-
@@ -194,7 +196,7 @@ void MSNWorld::gather_for_rendering() {
 void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_frame) {
     if (is_floating) {
         double t = iteration_counter/100.0;
-        glm::vec3 axis(std::sin(t), std::cos(t), 0);
+        glm::vec3 axis(0, 1.0f, 0);
         glm::mat4 rot = glm::rotate(ms_per_frame/1000.0f, axis);
         vao.model_matrix = rot*vao.model_matrix;
     }

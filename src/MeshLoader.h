@@ -237,7 +237,8 @@ void create_cloth( Nodes<value_type_nodes> &nodes,  Springs<value_type_springs> 
 }
 
 template<typename value_type_nodes, typename value_type_springs>
-void create_microtubule( Nodes<value_type_nodes> &nodes,  Springs<value_type_springs> &springs, SparseMatrix<value_type_springs> &A, const int n) {
+void create_microtubule( Nodes<value_type_nodes> &nodes,  Springs<value_type_springs> &springs, 
+    SparseMatrix<value_type_springs> &A, Vector<int> &T, const int n) {
     
     // -> create nodes
     int n_nodes = 13*2*n;
@@ -255,7 +256,36 @@ void create_microtubule( Nodes<value_type_nodes> &nodes,  Springs<value_type_spr
     // -> create springs
     typedef Eigen::Triplet<value_type_nodes> Triplet;
     std::vector<Triplet> coo_A;
+    T[0] = 0;
     int i_counter = 0;
+
+       for (int i = 0; i < 13; i++){
+        for (int j = 0; j < n*2 - 1; j++){
+            value_type_nodes a = i*2*n + j;
+            value_type_nodes b = i*2*n + j + 1;
+            coo_A.push_back(Triplet(a, i_counter, -1));
+            coo_A.push_back(Triplet(b, i_counter, 1));
+            i_counter++;
+        }
+        T[i + 1] = i_counter;
+    }
+
+    for (int k = 0; k < 3; k++) {
+        for (int j = k; j < n*2; j += 3) {
+            for (int i = 0; i < 13; i++){
+                value_type_nodes a = i*2*n + j;
+                value_type_nodes b = ((i + 1)%13)*2*n + j + (i == 12)*3;
+                if (b < n_nodes && j + (i == 12)*3 < n*2) {
+                    coo_A.push_back(Triplet(a, i_counter, -1));
+                    coo_A.push_back(Triplet(b, i_counter, 1));
+                    i_counter++;
+                }
+            }
+        }
+        T[14 + k] = i_counter;
+    }
+
+/*
     for (int i = 0; i < 13; i++){
         for (int j = 0; j < n*2; j++){
             value_type_nodes a = i*2*n + j;
@@ -281,7 +311,7 @@ void create_microtubule( Nodes<value_type_nodes> &nodes,  Springs<value_type_spr
             }
         }
     }
-
+    */
     springs.init(i_counter);
     std::iota(&springs.key[0], &springs.key[0] + springs.n_size_reserve, 0);
     A.setFromTriplets(coo_A.begin(), coo_A.end());

@@ -47,9 +47,9 @@ private:
     float zoom;
     ga::GLSLProgram mass_spring_program;
     Eigen::SimplicialLDLT<SparseMatrix<float>> chol;
-    std::vector<int> fixed_nodes;
     Nodes<float> nodes;
     Springs<float> springs;
+    Vector<int> T;
     SparseMatrix<float> A;
     SparseMatrix<float> J;
     SparseMatrixCSR<float> J1;

@@ -68,7 +68,7 @@ struct Springs {
 
     int32_t n_size;
     int32_t n_size_reserve;
-    Vector<value_type> key;
+    Vector<int> key;
     Vector<value_type> k;
     Vector<value_type> d;
     Vector<value_type> dx;
