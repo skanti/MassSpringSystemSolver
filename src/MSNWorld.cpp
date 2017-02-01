@@ -64,17 +64,18 @@ MSNWorld &MSNWorld::get_instance() {
 void MSNWorld::init_shape() {
     glm::mat4 trans_mat = glm::translate(glm::mat4(1), glm::vec3(0, 0, 0));
     vao.model_matrix = trans_mat*glm::scale(glm::mat4(1), glm::vec3(zoom));
-    vao.shape = ga::Shape::make_sphere(0.005f);
+    vao.shape = ga::Shape::make_sphere(0.02f);
 }
 
 void MSNWorld::init_shader() {
-    std::string dir = "/home/amon/grive/development/GameFramework/src/glsl";
+    std::string dir = "/home/amon/grive/development/MassSpringNetwork/src/glsl";
     ga::Visualization::load_shaders(mass_spring_program, dir, "MassSpringVS3D.glsl", "MassSpringFS3D.glsl", "", "", "");
 }
 
 void MSNWorld::init_instances() {
     vao.n_instances = N_MAX_NODES;
     vao.p_xyz.resize(3*N_MAX_NODES);
+    vao.color.resize(3*N_MAX_NODES);
 
     vao.n_springs = N_MAX_SPRINGS;
     vao.s_ab.resize(2*N_MAX_SPRINGS);
@@ -90,8 +91,8 @@ void MSNWorld::init_drawable() {
     glUniformMatrix4fv(mass_spring_program.uniform("ModelMatrix"), 1, GL_FALSE, &vao.model_matrix[0][0]);
     glUniformMatrix4fv(mass_spring_program.uniform("ViewMatrix"), 1, GL_FALSE, &ga::Visualization::view_window[0][0]);
     glUniformMatrix4fv(mass_spring_program.uniform("ProjectionMatrix"), 1, GL_FALSE, &ga::Visualization::projection_window[0][0]);
-    float nodes_color[] = {0.2f, 0.2f, 0.8f, 0.8f};
-    glUniform4fv(mass_spring_program.uniform("nodes_color"), 1, nodes_color);
+    float nodes_color_alpha = 0.6;
+    glUniform1f(mass_spring_program.uniform("nodes_color_alpha"), nodes_color_alpha);
     float springs_color[] = {0.8f, 0.2f, 0.2f, 0.8f};
     glUniform4fv(mass_spring_program.uniform("springs_color"), 1, springs_color);
 
@@ -118,6 +119,15 @@ void MSNWorld::init_drawable() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     // <-
 
+      // -> node instances color
+    glGenBuffers(1, &vao.vbo_instance_id1);
+    glBindBuffer(GL_ARRAY_BUFFER, vao.vbo_instance_id1);
+    glBufferData(GL_ARRAY_BUFFER, 3*nodes.n_size*sizeof(GLfloat), vao.color.data(), GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(2);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    // <-
+
     // -> springs
     glGenBuffers(1, &vao.vbo_springs_id);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao.vbo_springs_id);
@@ -138,10 +148,13 @@ void MSNWorld::draw() {
     // -> draw nodes
     glUniform1i(mass_spring_program.uniform("mode"), 0);
     glVertexAttribDivisor(1, 1);
+    glVertexAttribDivisor(2, 1);
     glUniformMatrix4fv(mass_spring_program.uniform("ModelMatrix"), 1, GL_FALSE, &vao.model_matrix[0][0]);
 
     glBindBuffer(GL_ARRAY_BUFFER, vao.vbo_instance_id0);
     glBufferData(GL_ARRAY_BUFFER, 3*nodes.n_size*sizeof(GLfloat), vao.p_xyz.data(), GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, vao.vbo_instance_id1);
+    glBufferData(GL_ARRAY_BUFFER, 3*nodes.n_size*sizeof(GLfloat), vao.color.data(), GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao.vbo_shape_index_id);
     glDrawElementsInstanced(GL_TRIANGLES, 3*vao.shape.n_segments, GL_UNSIGNED_INT, 0, nodes.n_size);
     // <-
@@ -163,6 +176,9 @@ void MSNWorld::gather_for_rendering() {
         vao.p_xyz[i*3 + 0] = (float)nodes.px[i];
         vao.p_xyz[i*3 + 1] = (float)nodes.py[i];
         vao.p_xyz[i*3 + 2] = (float)nodes.pz[i];
+        vao.color[i*3 + 0] = i % 2 ? 0.2 : 0.9;
+        vao.color[i*3 + 1] = i % 2 ? 0.2 : 0.9;
+        vao.color[i*3 + 2] = 0.9;
     }
 
    for (int j = 0; j < springs.n_size; j++) {
