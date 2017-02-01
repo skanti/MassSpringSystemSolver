@@ -8,10 +8,11 @@
 #include "Timer.h"
 
 const float dt = 0.1;
-#define N_MAX_NODES 10
-#define N_MAX_SPRINGS 20
+#define N_MAX_NODES 100
+#define N_MAX_SPRINGS 200
 
 MSNWorld::MSNWorld() : World() {
+    is_floating = 0;
     zoom = 0.7f;
     // -> reserve memory
     nodes.reserve(N_MAX_NODES);
@@ -32,20 +33,14 @@ MSNWorld::MSNWorld() : World() {
 
     // -> load and set mesh
     //load_mesh_ply2<float>("/dtome/amon/grive/development/MassSpringNetwork/data/canstick.ply2", nodes, springs);
-    create_cloth<float>(nodes, springs, A, 3);
+    create_microtubule<float>(nodes, springs, A, 3);
     normalize_and_recenter_nodes<float>(nodes);
     springs.set_as_equilibrium(nodes.px, nodes.py, nodes.pz, A);
     // <-
 
     M.setIdentity();
-    tswing = dt*0.1;
-    // fix_some_nodes(nodes, fixed_nodes);
-    // for (int i : fixed_nodes) {
-    //     M.valuePtr()[i] = 1e6;        
-    // }
-    M.valuePtr()[0] = 1e6;
-    M.valuePtr()[2] = 1e6;
-    fgravity = Eigen::MatrixXf::Constant(N_MAX_NODES, 1, -0.01f);
+
+    fgravity = Eigen::MatrixXf::Constant(N_MAX_NODES, 1, -0.00f);
 
     J.leftCols(springs.n_size) = A.leftCols(springs.n_size);
     Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<float>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
@@ -115,8 +110,8 @@ void MSNWorld::init_drawable() {
     // <-
 
     // -> node instances
-    glGenBuffers(1, &vao.vbo_instance_id);
-    glBindBuffer(GL_ARRAY_BUFFER, vao.vbo_instance_id);
+    glGenBuffers(1, &vao.vbo_instance_id0);
+    glBindBuffer(GL_ARRAY_BUFFER, vao.vbo_instance_id0);
     glBufferData(GL_ARRAY_BUFFER, 3*nodes.n_size*sizeof(GLfloat), vao.p_xyz.data(), GL_DYNAMIC_DRAW);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(1);
@@ -145,7 +140,7 @@ void MSNWorld::draw() {
     glVertexAttribDivisor(1, 1);
     glUniformMatrix4fv(mass_spring_program.uniform("ModelMatrix"), 1, GL_FALSE, &vao.model_matrix[0][0]);
 
-    glBindBuffer(GL_ARRAY_BUFFER, vao.vbo_instance_id);
+    glBindBuffer(GL_ARRAY_BUFFER, vao.vbo_instance_id0);
     glBufferData(GL_ARRAY_BUFFER, 3*nodes.n_size*sizeof(GLfloat), vao.p_xyz.data(), GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao.vbo_shape_index_id);
     glDrawElementsInstanced(GL_TRIANGLES, 3*vao.shape.n_segments, GL_UNSIGNED_INT, 0, nodes.n_size);
@@ -181,20 +176,14 @@ void MSNWorld::gather_for_rendering() {
 
 
 void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_frame) {
-    // double t = iteration_counter/100.0;
-    // glm::vec3 axis(std::sin(t), std::cos(t), 0);
-    // glm::mat4 rot = glm::rotate(ms_per_frame/1000.0f, axis);
-    // vao.model_matrix = rot*vao.model_matrix;
+    if (is_floating) {
+        double t = iteration_counter/100.0;
+        glm::vec3 axis(std::sin(t), std::cos(t), 0);
+        glm::mat4 rot = glm::rotate(ms_per_frame/1000.0f, axis);
+        vao.model_matrix = rot*vao.model_matrix;
+    }
     
     float h2 = dt*dt;
-
-    // if (std::abs(nodes.pz[0]) > 0.5) {
-    //     tswing = -tswing;
-    //     nodes.pz[0] += tswing;
-    //     nodes.pz[1] += tswing;   
-    // }
-    // nodes.pz[0] += tswing;
-    // nodes.pz[1] += tswing;
 
     nodes.qx.block(0, 0, nodes.n_size, 1) = nodes.px.block(0, 0, nodes.n_size, 1) + nodes.vx.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f); 
     nodes.qy.block(0, 0, nodes.n_size, 1) = nodes.py.block(0, 0, nodes.n_size, 1) + nodes.vy.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f);
@@ -236,6 +225,7 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     nodes.vz.block(0, 0, nodes.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1) - nodes.vz.block(0, 0, nodes.n_size, 1))/dt;
 
     J1.topRows(nodes.n_size) = J.leftCols(springs.n_size);
+    
     gather_for_rendering();
 }
 
@@ -307,3 +297,9 @@ void MSNWorld::mouse_button_callback(GLFWwindow *window, int button, int action,
     }
 }
 
+
+void MSNWorld::keyboard_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+        get_instance().is_floating = !get_instance().is_floating;
+    }
+}

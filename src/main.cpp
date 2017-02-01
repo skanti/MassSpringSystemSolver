@@ -11,6 +11,7 @@ int main(int argc, char *argv[]) {
     MSNWorld::init();
     ga::Engine::get_instance().set_world(&MSNWorld::get_instance());
     ga::Engine::get_instance().set_mouse_button_callback(&MSNWorld::mouse_button_callback);
+    ga::Engine::get_instance().set_key_callback(&MSNWorld::keyboard_callback);
     ga::Engine::get_instance().run();
     return 0;
 }

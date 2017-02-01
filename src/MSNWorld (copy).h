@@ -47,15 +47,22 @@ private:
     float zoom;
     ga::GLSLProgram mass_spring_program;
     Eigen::SimplicialLDLT<SparseMatrix<float>> chol;
+    Eigen::SimplicialLDLT<SparseMatrix<float>> chol2;
     std::vector<int> fixed_nodes;
     Nodes<float> nodes;
     Springs<float> springs;
     SparseMatrix<float> A;
+    SparseMatrix<float> K;
     SparseMatrix<float> J;
+    SparseMatrix<float> H;
+    SparseMatrix<float> I;
     SparseMatrixCSR<float> J1;
     SparseMatrix<float> Q;
+    SparseMatrix<float> B;
     SparseMatrix<float> Qinv;
     SparseMatrix<float> M;
+    SparseMatrix<float> M2;
+
     Vector<float> fgravity;
     ga::VAOMassSpring3D vao;
     static std::unique_ptr<MSNWorld> msn2d_world;
