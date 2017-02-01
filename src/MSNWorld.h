@@ -49,7 +49,8 @@ private:
     Eigen::SimplicialLDLT<SparseMatrix<float>> chol;
     Nodes<float> nodes;
     Springs<float> springs;
-    Vector<int> T;
+    Vector<int> T0;
+    Vector<int> T1;
     SparseMatrix<float> A;
     SparseMatrix<float> J;
     SparseMatrixCSR<float> J1;

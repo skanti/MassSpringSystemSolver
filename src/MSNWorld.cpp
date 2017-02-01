@@ -17,7 +17,8 @@ MSNWorld::MSNWorld() : World() {
     // -> reserve memory
     nodes.reserve(N_MAX_NODES);
     springs.reserve(N_MAX_SPRINGS);
-    T.resize(13 + 3 + 1);
+    T0.resize(13);
+    T1.resize(13 + 3);
     A.reserve(2*N_MAX_SPRINGS);
     A.resize(N_MAX_NODES, N_MAX_SPRINGS);
     J.reserve(2*N_MAX_SPRINGS);
@@ -34,7 +35,7 @@ MSNWorld::MSNWorld() : World() {
 
     // -> load and set mesh
     //load_mesh_ply2<float>("/dtome/amon/grive/development/MassSpringNetwork/data/canstick.ply2", nodes, springs);
-    create_microtubule<float>(nodes, springs, A, T, 3);
+    create_microtubule<float>(nodes, springs, A, T0, T1, 3);
     normalize_and_recenter_nodes<float>(nodes);
     springs.set_as_equilibrium(nodes.px, nodes.py, nodes.pz, A);
     // <-
@@ -174,13 +175,18 @@ void MSNWorld::draw() {
 
 void MSNWorld::gather_for_rendering() {
 
-    for (int i = 0; i < nodes.n_size; i++) {
-        vao.p_xyz[i*3 + 0] = (float)nodes.px[i];
-        vao.p_xyz[i*3 + 1] = (float)nodes.py[i];
-        vao.p_xyz[i*3 + 2] = (float)nodes.pz[i];
-        vao.color[i*3 + 0] = i % 2 ? 0.2 : 0.9;
-        vao.color[i*3 + 1] = i % 2 ? 0.2 : 0.9;
-        vao.color[i*3 + 2] = 0.9;
+    int i_counter = 0;
+    for (int i = 0, j0 = 0; i < 13; i++, j0 += T0[i]) {
+        for (int j = 0; j < T0[i]; j++) {
+            int k = j + j0;
+            vao.p_xyz[i_counter*3 + 0] = (float)nodes.px[k];
+            vao.p_xyz[i_counter*3 + 1] = (float)nodes.py[k];
+            vao.p_xyz[i_counter*3 + 2] = (float)nodes.pz[k];
+            vao.color[i_counter*3 + 0] = j % 2 ? 0.2 : 0.9;
+            vao.color[i_counter*3 + 1] = j % 2 ? 0.2 : 0.9;
+            vao.color[i_counter*3 + 2] = 0.9;
+            i_counter++;
+        }
     }
 
    for (int j = 0; j < springs.n_size; j++) {

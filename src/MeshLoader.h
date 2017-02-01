@@ -238,7 +238,7 @@ void create_cloth( Nodes<value_type_nodes> &nodes,  Springs<value_type_springs> 
 
 template<typename value_type_nodes, typename value_type_springs>
 void create_microtubule( Nodes<value_type_nodes> &nodes,  Springs<value_type_springs> &springs, 
-    SparseMatrix<value_type_springs> &A, Vector<int> &T, const int n) {
+    SparseMatrix<value_type_springs> &A, Vector<int> &T0, Vector<int> &T1, const int n) {
     
     // -> create nodes
     int n_nodes = 13*2*n;
@@ -250,13 +250,13 @@ void create_microtubule( Nodes<value_type_nodes> &nodes,  Springs<value_type_spr
             value_type_nodes pz = std::sin(M_PI*i/13.0f*2.0);
             nodes.set(i*2*n + j, px, py, pz, 0, 0, 0, 1.0);
         }
+        T0[i] = n*2; 
     }
     // <-
 
     // -> create springs
     typedef Eigen::Triplet<value_type_nodes> Triplet;
     std::vector<Triplet> coo_A;
-    T[0] = 0;
     int i_counter = 0;
 
        for (int i = 0; i < 13; i++){
@@ -267,7 +267,7 @@ void create_microtubule( Nodes<value_type_nodes> &nodes,  Springs<value_type_spr
             coo_A.push_back(Triplet(b, i_counter, 1));
             i_counter++;
         }
-        T[i + 1] = i_counter;
+        T1[i] = i_counter;
     }
 
     for (int k = 0; k < 3; k++) {
@@ -282,36 +282,8 @@ void create_microtubule( Nodes<value_type_nodes> &nodes,  Springs<value_type_spr
                 }
             }
         }
-        T[14 + k] = i_counter;
+        T1[13 + k] = i_counter;
     }
-
-/*
-    for (int i = 0; i < 13; i++){
-        for (int j = 0; j < n*2; j++){
-            value_type_nodes a = i*2*n + j;
-            if (j < n*2 - 1) {
-                value_type_nodes b = i*2*n + j + 1;
-                coo_A.push_back(Triplet(a, i_counter, -1));
-                coo_A.push_back(Triplet(b, i_counter, 1));
-                i_counter++;
-            }
-            
-            value_type_nodes c = a + 2*n;
-            if (c < n_nodes) {
-                coo_A.push_back(Triplet(a, i_counter, -1));
-                coo_A.push_back(Triplet(c, i_counter, 1));
-                i_counter++;
-            } 
-
-            value_type_nodes d = j + 2;
-            if (i == 12 && d > 1 && d < n*2) {
-                coo_A.push_back(Triplet(a, i_counter, -1));
-                coo_A.push_back(Triplet(d, i_counter, 1));
-                i_counter++;
-            }
-        }
-    }
-    */
     springs.init(i_counter);
     std::iota(&springs.key[0], &springs.key[0] + springs.n_size_reserve, 0);
     A.setFromTriplets(coo_A.begin(), coo_A.end());
