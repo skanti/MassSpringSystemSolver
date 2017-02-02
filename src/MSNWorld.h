@@ -1,9 +1,8 @@
-#ifndef SPRINGS2D_EARTH_H
-#define SPRINGS2D_EARTH_H
+#pragma once 
 
+#include <random>
 #include <memory>
 #include "Visualization.h"
-#include "AlignedAllocator.h"
 #include "Nodes.h"
 #include "Springs.h"
 #include "World.h"
@@ -43,24 +42,26 @@ public:
     void delete_nodes(float px, float py);
 
 private:
+    std::mt19937 mt;
+    std::normal_distribution<double> dist_normal;
     int is_floating;
-    float zoom;
+    double zoom;
     ga::GLSLProgram mass_spring_program;
-    Eigen::SimplicialLDLT<SparseMatrix<float>> chol;
-    Nodes<float> nodes;
-    Springs<float> springs;
+    Eigen::SimplicialLDLT<SparseMatrix<double>> chol;
+    Nodes<double> nodes;
+    Springs<double> springs;
     Vector<int> T0;
     Vector<int> T1;
-    SparseMatrix<float> A;
-    SparseMatrix<float> J;
-    SparseMatrixCSR<float> J1;
-    SparseMatrix<float> Q;
-    SparseMatrix<float> Qinv;
-    SparseMatrix<float> M;
-    Vector<float> fgravity;
+    SparseMatrix<double> A;
+    SparseMatrix<double> J;
+    SparseMatrixCSR<double> J1;
+    SparseMatrix<double> Q;
+    SparseMatrix<double> Qinv;
+    SparseMatrix<double> M;
+    Vector<double> f_gravity;
+    Vector<double> fx_langevin;
+    Vector<double> fy_langevin;
+    Vector<double> fz_langevin;
     ga::VAOMassSpring3D vao;
     static std::unique_ptr<MSNWorld> msn2d_world;
 };
-
-
-#endif //SPRINGS2D_EARTH_H

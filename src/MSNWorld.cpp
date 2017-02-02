@@ -1,15 +1,14 @@
 #include <mkl.h>
 #include "MSNWorld.h"
-#include "Solver.h"
 #include "Engine.h"
 #include "MeshLoader.h"
 #include <eigen3/Eigen/Sparse>
 #include "MathKernels.h"
 #include "Timer.h"
 
-const float dt = 0.1;
-#define N_MAX_NODES 100
-#define N_MAX_SPRINGS 200
+const double dt = 1.0/60.0;
+#define N_MAX_NODES 500
+#define N_MAX_SPRINGS 500
 
 MSNWorld::MSNWorld() : World() {
     is_floating = 0;
@@ -35,17 +34,27 @@ MSNWorld::MSNWorld() : World() {
 
     // -> load and set mesh
     //load_mesh_ply2<float>("/dtome/amon/grive/development/MassSpringNetwork/data/canstick.ply2", nodes, springs);
-    create_microtubule<float>(nodes, springs, A, T0, T1, 3);
-    normalize_and_recenter_nodes<float>(nodes);
+    create_microtubule<double>(nodes, springs, A, T0, T1, 5);
+    normalize_and_recenter_nodes<double>(nodes);
     springs.set_as_equilibrium(nodes.px, nodes.py, nodes.pz, A);
     // <-
 
     M.setIdentity();
+    for (int i = 0, j0 = 0; i < 13; i++, j0 += T0[i]) {
+        for (int j = 0; j < 3; j++) {
+        int k = j + j0;
+        M.valuePtr()[k] = 1e6;
+        }
+    }
 
-    fgravity = Eigen::MatrixXf::Constant(N_MAX_NODES, 1, -0.00f);
+    mt.seed(999);
+    f_gravity = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0.01f);
+    fx_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
+    fy_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
+    fz_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
 
     J.leftCols(springs.n_size) = A.leftCols(springs.n_size);
-    Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<float>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
+    Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<double>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
     chol.compute(Q.block(0,0, nodes.n_size, nodes.n_size));
 
     init_shader();
@@ -93,7 +102,7 @@ void MSNWorld::init_drawable() {
     glUniformMatrix4fv(mass_spring_program.uniform("ModelMatrix"), 1, GL_FALSE, &vao.model_matrix[0][0]);
     glUniformMatrix4fv(mass_spring_program.uniform("ViewMatrix"), 1, GL_FALSE, &ga::Visualization::view_window[0][0]);
     glUniformMatrix4fv(mass_spring_program.uniform("ProjectionMatrix"), 1, GL_FALSE, &ga::Visualization::projection_window[0][0]);
-    float nodes_color_alpha = 0.8;
+    float nodes_color_alpha = 1.0;
     glUniform1f(mass_spring_program.uniform("nodes_color_alpha"), nodes_color_alpha);
     float springs_color[] = {0.8f, 0.2f, 0.2f, 0.8f};
     glUniform4fv(mass_spring_program.uniform("springs_color"), 1, springs_color);
@@ -207,7 +216,11 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
         vao.model_matrix = rot*vao.model_matrix;
     }
     
-    float h2 = dt*dt;
+    double h2 = dt*dt;
+
+    std::generate(&fx_langevin[0], &fx_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
+    std::generate(&fy_langevin[0], &fy_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
+    std::generate(&fz_langevin[0], &fz_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
 
     nodes.qx.block(0, 0, nodes.n_size, 1) = nodes.px.block(0, 0, nodes.n_size, 1) + nodes.vx.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f); 
     nodes.qy.block(0, 0, nodes.n_size, 1) = nodes.py.block(0, 0, nodes.n_size, 1) + nodes.vy.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f);
@@ -234,9 +247,12 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
             springs.dz[j] = springs.d[j]*springs.dz_rhs[j]/springs.d_rhs[j];
         }
 
-        nodes.px_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qx.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)*springs.dx.block(0, 0, springs.n_size, 1));
-        nodes.py_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qy.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)*springs.dy.block(0, 0, springs.n_size, 1) + fgravity.block(0, 0, nodes.n_size, 1));
-        nodes.pz_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qz.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)*springs.dz.block(0, 0, springs.n_size, 1));
+        nodes.px_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qx.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)*springs.dx.block(0, 0, springs.n_size, 1) 
+            + fx_langevin.block(0, 0, nodes.n_size, 1));
+        nodes.py_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qy.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)*springs.dy.block(0, 0, springs.n_size, 1) 
+            + fy_langevin.block(0, 0, nodes.n_size, 1) + f_gravity.block(0, 0, nodes.n_size, 1));
+        nodes.pz_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qz.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)*springs.dz.block(0, 0, springs.n_size, 1)
+            + fz_langevin.block(0, 0, nodes.n_size, 1));
 
 
         nodes.px.block(0, 0, nodes.n_size, 1) = chol.solve(nodes.px_rhs.block(0, 0, nodes.n_size, 1));
@@ -270,7 +286,7 @@ void MSNWorld::spawn_nodes(float px, float py) {
         springs.n_size++;
         
         springs.set_as_equilibrium1(nodes.px, nodes.py, nodes.pz, J, springs.n_size-1);
-        Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<float>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
+        Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<double>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
         chol.compute(Q.block(0,0, nodes.n_size, nodes.n_size));
 
         // Eigen::IOFormat CleanFmt(2, 0, ", ", "\n", "[", "]");
@@ -294,7 +310,7 @@ void MSNWorld::delete_nodes(float px, float py) {
         }
 
         // std::iota(&springs.key[0], &springs.key[0] + springs.n_size, 0);
-        Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<float>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
+        Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<double>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
         chol.compute(Q.block(0,0, nodes.n_size, nodes.n_size));
 
         // Eigen::IOFormat CleanFmt(2, 0, ", ", "\n", "[", "]");
