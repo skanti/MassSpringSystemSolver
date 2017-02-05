@@ -43,6 +43,25 @@ struct Nodes {
         m[i] = mi;
     }
 
+    // void swap(int i, int j) {
+    //     std::swap(px[i], px[j]);
+    //     std::swap(py[i], py[j]);
+    //     std::swap(pz[i], pz[j]);
+    //     std::swap(vx[i], vx[j]);
+    //     std::swap(vy[i], vy[j]);
+    //     std::swap(vz[i], vz[j]);
+    //     std::swap(m[i], m[j]);
+    // }
+
+    void insert(int i_protofilament, const int n_pt, Vector<int> &T0, Vector<int> &S0) {
+
+        for (int i = n_pt - 1, j0 = n_size; i > i_protofilament; j0 -= T0[i], i--) {
+            int j1 = j0 - T0[i];
+            std::swap(S0[j0], S0[j1]);
+
+        }
+    }
+
     // -> nodes
     int n_size;
     int n_size_reserve;

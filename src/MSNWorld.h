@@ -42,8 +42,10 @@ public:
     void delete_nodes(float px, float py);
 
 private:
+    int flag;
     std::mt19937 mt;
     std::normal_distribution<double> dist_normal;
+    std::uniform_int_distribution<int> dist_int_uniform;
     int is_floating;
     double zoom;
     ga::GLSLProgram mass_spring_program;
@@ -52,6 +54,9 @@ private:
     Springs<double> springs;
     Vector<int> T0;
     Vector<int> T1;
+    Vector<int> T2;
+    Vector<int> S0;
+    Vector<int> V0;
     SparseMatrix<double> A;
     SparseMatrix<double> J;
     SparseMatrixCSR<double> J1;

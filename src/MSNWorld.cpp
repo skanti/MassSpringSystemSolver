@@ -9,15 +9,22 @@
 const double dt = 1.0/60.0;
 #define N_MAX_NODES 500
 #define N_MAX_SPRINGS 500
+#define N_PT 3
+#define N_PITCH 2
 
 MSNWorld::MSNWorld() : World() {
+    flag = 1;
     is_floating = 0;
     zoom = 0.7f;
     // -> reserve memory
     nodes.reserve(N_MAX_NODES);
     springs.reserve(N_MAX_SPRINGS);
-    T0.resize(13);
-    T1.resize(13 + 3);
+    T0.resize(N_PT);
+    T2.resize(N_PT + 1);
+    S0.resize(N_MAX_NODES);
+    V0.resize(N_MAX_NODES);
+    T1.resize(N_PT + N_PITCH);
+    // S1.resize(13 + 3);
     A.reserve(2*N_MAX_SPRINGS);
     A.resize(N_MAX_NODES, N_MAX_SPRINGS);
     J.reserve(2*N_MAX_SPRINGS);
@@ -34,20 +41,24 @@ MSNWorld::MSNWorld() : World() {
 
     // -> load and set mesh
     //load_mesh_ply2<float>("/dtome/amon/grive/development/MassSpringNetwork/data/canstick.ply2", nodes, springs);
-    create_microtubule<double>(nodes, springs, A, T0, T1, 5);
+    create_microtubule<double>(nodes, springs, A, T0, T1, S0, V0, N_PT, N_PITCH, 2);
     normalize_and_recenter_nodes<double>(nodes);
     springs.set_as_equilibrium(nodes.px, nodes.py, nodes.pz, A);
+    T2[0] = 0;
+    std::partial_sum(&T0[0], &T0[0] + N_PT, &T2[1], std::plus<int>());
     // <-
 
     M.setIdentity();
-    for (int i = 0, j0 = 0; i < 13; i++, j0 += T0[i]) {
-        for (int j = 0; j < 3; j++) {
+    for (int i = 0, j0 = 0; i < N_PT; i++, j0 += T0[i]) {
+        for (int j = 0; j < N_PITCH; j++) {
         int k = j + j0;
         M.valuePtr()[k] = 1e6;
         }
     }
 
     mt.seed(999);
+    dist_int_uniform = std::uniform_int_distribution<int>(0, N_PT - 1);
+
     f_gravity = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0.01f);
     fx_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
     fy_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
@@ -183,20 +194,23 @@ void MSNWorld::draw() {
 };
 
 void MSNWorld::gather_for_rendering() {
+    std::vector<int> t(N_PT, 0);
 
-    int i_counter = 0;
-    for (int i = 0, j0 = 0; i < 13; i++, j0 += T0[i]) {
+    for (int i = 0, j0 = 0; i < N_PT; j0 += T0[i], i++) {
         for (int j = 0; j < T0[i]; j++) {
             int k = j + j0;
-            vao.p_xyz[i_counter*3 + 0] = (float)nodes.px[k];
-            vao.p_xyz[i_counter*3 + 1] = (float)nodes.py[k];
-            vao.p_xyz[i_counter*3 + 2] = (float)nodes.pz[k];
-            vao.color[i_counter*3 + 0] = j % 2 ? 0.2 : 0.9;
-            vao.color[i_counter*3 + 1] = j % 2 ? 0.2 : 0.9;
-            vao.color[i_counter*3 + 2] = 0.9;
-            i_counter++;
+            vao.p_xyz[k*3 + 0] = (float)nodes.px[k];
+            vao.p_xyz[k*3 + 1] = (float)nodes.py[k];
+            vao.p_xyz[k*3 + 2] = (float)nodes.pz[k];
+            vao.color[k*3 + 0] = t[V0[k]] % 2 ? 0.2 : 0.9;
+            vao.color[k*3 + 1] = t[V0[k]] % 2 ? 0.2 : 0.9;
+            vao.color[k*3 + 2] = 0.9;
+            t[V0[k]]++;
         }
+
     }
+
+
 
    for (int j = 0; j < springs.n_size; j++) {
         int pi0 = J.outerIndexPtr()[j];
@@ -210,7 +224,7 @@ void MSNWorld::gather_for_rendering() {
 
 void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_frame) {
     if (is_floating) {
-        double t = iteration_counter/100.0;
+        // double t = iteration_counter/100.0;
         glm::vec3 axis(0, 1.0f, 0);
         glm::mat4 rot = glm::rotate(ms_per_frame/1000.0f, axis);
         vao.model_matrix = rot*vao.model_matrix;
@@ -218,9 +232,9 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     
     double h2 = dt*dt;
 
-    std::generate(&fx_langevin[0], &fx_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
-    std::generate(&fy_langevin[0], &fy_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
-    std::generate(&fz_langevin[0], &fz_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
+    // std::generate(&fx_langevin[0], &fx_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
+    // std::generate(&fy_langevin[0], &fy_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
+    // std::generate(&fz_langevin[0], &fz_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
 
     nodes.qx.block(0, 0, nodes.n_size, 1) = nodes.px.block(0, 0, nodes.n_size, 1) + nodes.vx.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f); 
     nodes.qy.block(0, 0, nodes.n_size, 1) = nodes.py.block(0, 0, nodes.n_size, 1) + nodes.vy.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f);
@@ -250,7 +264,7 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
         nodes.px_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qx.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)*springs.dx.block(0, 0, springs.n_size, 1) 
             + fx_langevin.block(0, 0, nodes.n_size, 1));
         nodes.py_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qy.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)*springs.dy.block(0, 0, springs.n_size, 1) 
-            + fy_langevin.block(0, 0, nodes.n_size, 1) + f_gravity.block(0, 0, nodes.n_size, 1));
+            + fy_langevin.block(0, 0, nodes.n_size, 1));
         nodes.pz_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qz.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)*springs.dz.block(0, 0, springs.n_size, 1)
             + fz_langevin.block(0, 0, nodes.n_size, 1));
 
@@ -271,13 +285,37 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
 
 void MSNWorld::spawn_nodes(float px, float py) {
     if (nodes.n_size < N_MAX_NODES && springs.n_size < N_MAX_SPRINGS) {
-        nodes.set(nodes.n_size, px, py, 0, 0, 0, 0, 1.0f);
+        int i_protofilament = dist_int_uniform(mt);
+
+        // std::cout << "n_size " <<  nodes.n_size << std::endl;
+        // std::cout << "i_pf " <<  i_protofilament << std::endl;
+
+
+        int j = nodes.n_size - 1;
+        for (int i = N_PT - 1; i > i_protofilament; i--) {
+            j -= T0[i];
+        }
+        // std::cout << "j " << j << std::endl;
+        double px0 = nodes.px[j];
+        double py0 = nodes.py[j] + 0.1;
+        double pz0 = nodes.pz[j];
+
+        nodes.set(nodes.n_size, px0, py0, pz0, 0, 0, 0, 1.0f);
+        S0[nodes.n_size] = nodes.n_size;
+        V0[nodes.n_size] = i_protofilament;
+        // std::cout << V0.block(0, 0, nodes.n_size + 1, 1) << std::endl;
+
+        // std::cout << S0.block(0, 0, nodes.n_size, 1) << std::endl;
+        nodes.insert(i_protofilament, N_PT, T0, S0);
         nodes.n_size++;
+        T0[i_protofilament]++;
+
+        std::partial_sum(&T0[0], &T0[0] + N_PT, &T2[1], std::plus<int>());
 
         // J.coeffRef(nodes.n_size - 2, springs.n_size-1) = -1;
         // J.coeffRef(nodes.n_size - 1, springs.n_size-1) = 1;
         int ia = J.outerIndexPtr()[springs.n_size];
-        J.innerIndexPtr()[ia] = nodes.n_size - 2;
+        J.innerIndexPtr()[ia] = j;
         J.innerIndexPtr()[ia+1] = nodes.n_size - 1;
         J.valuePtr()[ia] = -1;
         J.valuePtr()[ia+1] = 1;
@@ -321,25 +359,27 @@ void MSNWorld::delete_nodes(float px, float py) {
 
 }
 void MSNWorld::mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
-    if (action == GLFW_PRESS) {
-        double px_target, py_target;
-        ga::Engine::get_instance().get_cursor_position(&px_target, &py_target);
-        px_target = px_target*2.0f / ga::WindowManager::width_window - 1.0f;
-        py_target = (-py_target*2.0f / ga::WindowManager::height_window + 1.0f)*ga::WindowManager::aspect_ratio_inv_window;
-        glm::mat4 z = glm::scale(glm::mat4(1), glm::vec3(get_instance().zoom));
-        glm::mat4 t = glm::translate(glm::mat4(1), glm::vec3(0, 0, 0));
-        glm::vec4 p = glm::inverse(z)*t*glm::vec4(px_target, py_target, 0, 1);
-        if (button == GLFW_MOUSE_BUTTON_LEFT) {
-            get_instance().spawn_nodes(p[0], p[1]);
-        } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
-            get_instance().delete_nodes(p[0], p[1]);
-        }
-    }
+    // if (action == GLFW_PRESS) {
+    //     double px_target, py_target;
+    //     ga::Engine::get_instance().get_cursor_position(&px_target, &py_target);
+    //     px_target = px_target*2.0f / ga::WindowManager::width_window - 1.0f;
+    //     py_target = (-py_target*2.0f / ga::WindowManager::height_window + 1.0f)*ga::WindowManager::aspect_ratio_inv_window;
+    //     glm::mat4 z = glm::scale(glm::mat4(1), glm::vec3(get_instance().zoom));
+    //     glm::mat4 t = glm::translate(glm::mat4(1), glm::vec3(0, 0, 0));
+    //     glm::vec4 p = glm::inverse(z)*t*glm::vec4(px_target, py_target, 0, 1);
+    //     if (button == GLFW_MOUSE_BUTTON_LEFT) {
+    //         get_instance().spawn_nodes(p[0], p[1]);
+    //     } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+    //         get_instance().delete_nodes(p[0], p[1]);
+    //     }
+    // }
 }
 
 
 void MSNWorld::keyboard_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
-    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+    if (key == GLFW_KEY_A && action == GLFW_PRESS) {
+        get_instance().spawn_nodes(0, 0);
+    } else if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
         get_instance().is_floating = !get_instance().is_floating;
     }
 }
