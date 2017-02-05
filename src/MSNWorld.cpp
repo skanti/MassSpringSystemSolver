@@ -11,6 +11,7 @@ const double dt = 1.0/60.0;
 #define N_MAX_SPRINGS 500
 #define N_PT 3
 #define N_PITCH 2
+#define N_LENGTH 2
 
 MSNWorld::MSNWorld() : World() {
     flag = 1;
@@ -20,7 +21,7 @@ MSNWorld::MSNWorld() : World() {
     nodes.reserve(N_MAX_NODES);
     springs.reserve(N_MAX_SPRINGS);
     T0.resize(N_PT);
-    T2.resize(N_PT + 1);
+    T2.resize(N_PT);
     S0.resize(N_MAX_NODES);
     V0.resize(N_MAX_NODES);
     T1.resize(N_PT + N_PITCH);
@@ -41,11 +42,10 @@ MSNWorld::MSNWorld() : World() {
 
     // -> load and set mesh
     //load_mesh_ply2<float>("/dtome/amon/grive/development/MassSpringNetwork/data/canstick.ply2", nodes, springs);
-    create_microtubule<double>(nodes, springs, A, T0, T1, S0, V0, N_PT, N_PITCH, 2);
+    create_microtubule<double>(nodes, springs, A, T0, T1, S0, V0, N_PT, N_PITCH, N_LENGTH);
     normalize_and_recenter_nodes<double>(nodes);
     springs.set_as_equilibrium(nodes.px, nodes.py, nodes.pz, A);
-    T2[0] = 0;
-    std::partial_sum(&T0[0], &T0[0] + N_PT, &T2[1], std::plus<int>());
+    for (int i = 0, j = N_LENGTH + N_PITCH - 1; i < N_PT; i++, j += N_LENGTH + N_PITCH) T2[i] = j; 
     // <-
 
     M.setIdentity();
@@ -287,15 +287,12 @@ void MSNWorld::spawn_nodes(float px, float py) {
     if (nodes.n_size < N_MAX_NODES && springs.n_size < N_MAX_SPRINGS) {
         int i_protofilament = dist_int_uniform(mt);
 
+        int j = T2[i_protofilament];
+
         // std::cout << "n_size " <<  nodes.n_size << std::endl;
         // std::cout << "i_pf " <<  i_protofilament << std::endl;
-
-
-        int j = nodes.n_size - 1;
-        for (int i = N_PT - 1; i > i_protofilament; i--) {
-            j -= T0[i];
-        }
         // std::cout << "j " << j << std::endl;
+
         double px0 = nodes.px[j];
         double py0 = nodes.py[j] + 0.1;
         double pz0 = nodes.pz[j];
@@ -306,11 +303,13 @@ void MSNWorld::spawn_nodes(float px, float py) {
         // std::cout << V0.block(0, 0, nodes.n_size + 1, 1) << std::endl;
 
         // std::cout << S0.block(0, 0, nodes.n_size, 1) << std::endl;
+        // std::cout << "******" << std::endl;
         nodes.insert(i_protofilament, N_PT, T0, S0);
         nodes.n_size++;
         T0[i_protofilament]++;
+        T2[i_protofilament] = nodes.n_size - 1;
 
-        std::partial_sum(&T0[0], &T0[0] + N_PT, &T2[1], std::plus<int>());
+        // std::partial_sum(&T0[0], &T0[0] + N_PT, &T2[1], std::plus<int>());
 
         // J.coeffRef(nodes.n_size - 2, springs.n_size-1) = -1;
         // J.coeffRef(nodes.n_size - 1, springs.n_size-1) = 1;
