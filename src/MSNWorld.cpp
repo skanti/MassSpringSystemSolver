@@ -9,8 +9,8 @@
 const double dt = 1.0/60.0;
 #define N_MAX_NODES 500
 #define N_MAX_SPRINGS 500
-#define N_PT 3
-#define N_PITCH 2
+#define N_PT 13
+#define N_PITCH 3
 #define N_LENGTH 2
 
 MSNWorld::MSNWorld() : World() {
@@ -45,7 +45,7 @@ MSNWorld::MSNWorld() : World() {
     create_microtubule<double>(nodes, springs, A, T0, T1, S0, V0, N_PT, N_PITCH, N_LENGTH);
     normalize_and_recenter_nodes<double>(nodes);
     springs.set_as_equilibrium(nodes.px, nodes.py, nodes.pz, A);
-    for (int i = 0, j = N_LENGTH + N_PITCH - 1; i < N_PT; i++, j += N_LENGTH + N_PITCH) T2[i] = j; 
+    for (int i = 0, j = N_LENGTH*2 - 1; i < N_PT; i++, j += N_LENGTH*2) T2[i] = j; 
     // <-
 
     M.setIdentity();
@@ -232,9 +232,9 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     
     double h2 = dt*dt;
 
-    // std::generate(&fx_langevin[0], &fx_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
-    // std::generate(&fy_langevin[0], &fy_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
-    // std::generate(&fz_langevin[0], &fz_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
+    std::generate(&fx_langevin[0], &fx_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
+    std::generate(&fy_langevin[0], &fy_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
+    std::generate(&fz_langevin[0], &fz_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
 
     nodes.qx.block(0, 0, nodes.n_size, 1) = nodes.px.block(0, 0, nodes.n_size, 1) + nodes.vx.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f); 
     nodes.qy.block(0, 0, nodes.n_size, 1) = nodes.py.block(0, 0, nodes.n_size, 1) + nodes.vy.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f);
@@ -294,7 +294,7 @@ void MSNWorld::spawn_nodes(float px, float py) {
         // std::cout << "j " << j << std::endl;
 
         double px0 = nodes.px[j];
-        double py0 = nodes.py[j] + 0.1;
+        double py0 = nodes.py[j] + 0.2;
         double pz0 = nodes.pz[j];
 
         nodes.set(nodes.n_size, px0, py0, pz0, 0, 0, 0, 1.0f);
@@ -325,13 +325,6 @@ void MSNWorld::spawn_nodes(float px, float py) {
         springs.set_as_equilibrium1(nodes.px, nodes.py, nodes.pz, J, springs.n_size-1);
         Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<double>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
         chol.compute(Q.block(0,0, nodes.n_size, nodes.n_size));
-
-        // Eigen::IOFormat CleanFmt(2, 0, ", ", "\n", "[", "]");
-        // Eigen::Matrix<float, N_MAX_NODES, N_MAX_NODES> Q1 = Q;
-        // Eigen::Matrix<float, N_MAX_NODES, N_MAX_SPRINGS> J2 = J1;
-        // std::cout << J2.format(CleanFmt) << std::endl << std::endl;
-        // std::cout << Q1.format(CleanFmt) << std::endl << std::endl;
-
     }
 }
 
@@ -380,5 +373,11 @@ void MSNWorld::keyboard_callback(GLFWwindow *window, int key, int scancode, int 
         get_instance().spawn_nodes(0, 0);
     } else if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
         get_instance().is_floating = !get_instance().is_floating;
+    } else if (key == GLFW_KEY_DOWN && action == GLFW_PRESS) {
+        get_instance().zoom -= 2e-2;
+        get_instance().vao.model_matrix = glm::scale(glm::mat4(1), glm::vec3(get_instance().zoom));
+    } else if (key == GLFW_KEY_UP && action == GLFW_PRESS) {
+        get_instance().zoom += 2e-2;
+        get_instance().vao.model_matrix = glm::scale(glm::mat4(1), glm::vec3(get_instance().zoom));
     }
 }

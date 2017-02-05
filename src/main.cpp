@@ -7,7 +7,7 @@
 std::unique_ptr<MSNWorld> MSNWorld::msn2d_world = nullptr;
 
 int main(int argc, char *argv[]) {
-    ga::Engine::init("Mass-Spring Network", 0, 0, 800, 600);
+    ga::Engine::init("Mass-Spring Network", 0, 0, 1280, 720);
     MSNWorld::init();
     ga::Engine::get_instance().set_world(&MSNWorld::get_instance());
     ga::Engine::get_instance().set_mouse_button_callback(&MSNWorld::mouse_button_callback);
