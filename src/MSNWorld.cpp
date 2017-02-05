@@ -21,10 +21,10 @@ MSNWorld::MSNWorld() : World() {
     nodes.reserve(N_MAX_NODES);
     springs.reserve(N_MAX_SPRINGS);
     T0.resize(N_PT);
+    T1.resize(N_PT + 1);
     T2.resize(N_PT);
     S0.resize(N_MAX_NODES);
     V0.resize(N_MAX_NODES);
-    T1.resize(N_PT + N_PITCH);
     // S1.resize(13 + 3);
     A.reserve(2*N_MAX_SPRINGS);
     A.resize(N_MAX_NODES, N_MAX_SPRINGS);
@@ -42,9 +42,11 @@ MSNWorld::MSNWorld() : World() {
 
     // -> load and set mesh
     //load_mesh_ply2<float>("/dtome/amon/grive/development/MassSpringNetwork/data/canstick.ply2", nodes, springs);
-    create_microtubule<double>(nodes, springs, A, T0, T1, S0, V0, N_PT, N_PITCH, N_LENGTH);
+    create_microtubule<double>(nodes, springs, A, T0, T1, S0, V0, L, N_PT, N_PITCH, N_LENGTH);
     normalize_and_recenter_nodes<double>(nodes);
     springs.set_as_equilibrium(nodes.px, nodes.py, nodes.pz, A);
+    T1[0] = 0;
+    std::partial_sum(&T0[0], &T0[0] + N_PT, &T1[1], std::plus<int>());
     for (int i = 0, j = N_LENGTH*2 - 1; i < N_PT; i++, j += N_LENGTH*2) T2[i] = j; 
     // <-
 
@@ -210,8 +212,6 @@ void MSNWorld::gather_for_rendering() {
 
     }
 
-
-
    for (int j = 0; j < springs.n_size; j++) {
         int pi0 = J.outerIndexPtr()[j];
         int a = J.innerIndexPtr()[pi0];
@@ -232,9 +232,9 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     
     double h2 = dt*dt;
 
-    std::generate(&fx_langevin[0], &fx_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
-    std::generate(&fy_langevin[0], &fy_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
-    std::generate(&fz_langevin[0], &fz_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
+    // std::generate(&fx_langevin[0], &fx_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
+    // std::generate(&fy_langevin[0], &fy_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
+    // std::generate(&fz_langevin[0], &fz_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
 
     nodes.qx.block(0, 0, nodes.n_size, 1) = nodes.px.block(0, 0, nodes.n_size, 1) + nodes.vx.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f); 
     nodes.qy.block(0, 0, nodes.n_size, 1) = nodes.py.block(0, 0, nodes.n_size, 1) + nodes.vy.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f);
@@ -283,6 +283,32 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     gather_for_rendering();
 }
 
+void MSNWorld::create_springs(int i_node) {
+    int j0 = (V0[i_node] - 1 + N_PT)%N_PT;
+    int j1 = (V0[i_node] + 1)%N_PT;
+    for (int k = T1[j1]; k < T1[j1 + 1]; k++) {
+        int a = i_node;
+        int b = S0[k];
+        double dxj = nodes.px[a] - nodes.px[b];
+        double dyj = nodes.py[a] - nodes.py[b];
+        double dzj = nodes.pz[a] - nodes.pz[b];
+        double d = std::sqrt(dxj*dxj + dyj*dyj + dzj*dzj);
+        if (d < 0.26) {
+            int64_t ab = a <= b ? ((int64_t)a << 32) + b : ((int64_t)b << 32) + a;
+            if (L.insert({ab, (unsigned char)1}).second) {
+                int l = J.outerIndexPtr()[springs.n_size];
+                J.innerIndexPtr()[l] = a;
+                J.innerIndexPtr()[l + 1] = b;
+                J.valuePtr()[l] = -1;
+                J.valuePtr()[l + 1] = 1;
+                springs.key[springs.n_size] = springs.n_size; 
+                springs.n_size++;
+                springs.set_as_equilibrium1(nodes.px, nodes.py, nodes.pz, J, springs.n_size - 1);
+            }
+        }
+    }
+}
+
 void MSNWorld::spawn_nodes(float px, float py) {
     if (nodes.n_size < N_MAX_NODES && springs.n_size < N_MAX_SPRINGS) {
         int i_protofilament = dist_int_uniform(mt);
@@ -308,21 +334,24 @@ void MSNWorld::spawn_nodes(float px, float py) {
         nodes.n_size++;
         T0[i_protofilament]++;
         T2[i_protofilament] = nodes.n_size - 1;
+        std::partial_sum(&T0[0], &T0[0] + N_PT, &T1[1], std::plus<int>());
 
-        // std::partial_sum(&T0[0], &T0[0] + N_PT, &T2[1], std::plus<int>());
 
-        // J.coeffRef(nodes.n_size - 2, springs.n_size-1) = -1;
-        // J.coeffRef(nodes.n_size - 1, springs.n_size-1) = 1;
-        int ia = J.outerIndexPtr()[springs.n_size];
-        J.innerIndexPtr()[ia] = j;
-        J.innerIndexPtr()[ia+1] = nodes.n_size - 1;
-        J.valuePtr()[ia] = -1;
-        J.valuePtr()[ia+1] = 1;
+        int l = J.outerIndexPtr()[springs.n_size];
+        int a = j;
+        int b = nodes.n_size - 1;
+        J.innerIndexPtr()[l] = a;
+        J.innerIndexPtr()[l + 1] = b;
+        J.valuePtr()[l] = -1;
+        J.valuePtr()[l + 1] = 1;
         springs.key[springs.n_size] = springs.n_size;
-
+        int64_t ab = a <= b ? ((int64_t)a << 32) + b : ((int64_t)b << 32) + a;
+        L.insert({ab, (unsigned char)1});        
         springs.n_size++;
-        
-        springs.set_as_equilibrium1(nodes.px, nodes.py, nodes.pz, J, springs.n_size-1);
+        springs.set_as_equilibrium1(nodes.px, nodes.py, nodes.pz, J, springs.n_size - 1);
+
+        create_springs(nodes.n_size - 1);
+
         Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<double>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
         chol.compute(Q.block(0,0, nodes.n_size, nodes.n_size));
     }

@@ -2,6 +2,7 @@
 
 #include <random>
 #include <memory>
+#include <unordered_map>
 #include "Visualization.h"
 #include "Nodes.h"
 #include "Springs.h"
@@ -37,6 +38,8 @@ public:
 
     void gather_for_rendering();
 
+    void create_springs(int i_node);
+
     void spawn_nodes(float px, float py);
 
     void delete_nodes(float px, float py);
@@ -60,6 +63,7 @@ private:
     SparseMatrix<double> A;
     SparseMatrix<double> J;
     SparseMatrixCSR<double> J1;
+    std::unordered_map<int64_t, unsigned char> L;
     SparseMatrix<double> Q;
     SparseMatrix<double> Qinv;
     SparseMatrix<double> M;

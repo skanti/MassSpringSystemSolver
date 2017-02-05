@@ -239,6 +239,7 @@ void create_cloth( Nodes<value_type_nodes> &nodes,  Springs<value_type_springs> 
 template<typename value_type_nodes, typename value_type_springs>
 void create_microtubule( Nodes<value_type_nodes> &nodes,  Springs<value_type_springs> &springs, 
     SparseMatrix<value_type_springs> &A, Vector<int> &T0, Vector<int> &T1, Vector<int> &S0, Vector<int> &V0, 
+    std::unordered_map<int64_t, unsigned char> &L, 
     const int n_pt, const int n_pitch, const int n) {
     
     // -> create nodes
@@ -267,6 +268,8 @@ void create_microtubule( Nodes<value_type_nodes> &nodes,  Springs<value_type_spr
         for (int j = 0; j < n*2 - 1; j++){
             value_type_nodes a = i*2*n + j;
             value_type_nodes b = i*2*n + j + 1;
+            int64_t ab = a <= b ? ((int64_t)a << 32) + b : ((int64_t)b << 32) + a;
+            L.insert({ab, (unsigned char)1});
             coo_A.push_back(Triplet(a, i_counter, -1));
             coo_A.push_back(Triplet(b, i_counter, 1));
             i_counter++;
@@ -279,6 +282,8 @@ void create_microtubule( Nodes<value_type_nodes> &nodes,  Springs<value_type_spr
             for (int i = 0; i < n_pt; i++){
                 value_type_nodes a = i*2*n + j;
                 value_type_nodes b = ((i + 1)%n_pt)*2*n + j + (i == n_pt - 1)*n_pitch;
+                int64_t ab = a <= b ? ((int64_t)a << 32) + b : ((int64_t)b << 32) + a;
+                L.insert({ab, (unsigned char)1});
                 if (b < n_nodes && j + (i == n_pt - 1)*n_pitch < n*2) {
                     coo_A.push_back(Triplet(a, i_counter, -1));
                     coo_A.push_back(Triplet(b, i_counter, 1));
