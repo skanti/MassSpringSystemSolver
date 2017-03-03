@@ -24,8 +24,8 @@ set(FREETYPE_DIR /usr/include/freetype2)
 
 set(MKL_DIR /opt/intel/compilers_and_libraries/linux/mkl)
 
-include_directories(${GAMEFRAMEWORK_DIR}/src/cpp ${FREETYPE_DIR} ${MKL_DIR}/include)
-link_directories(${GAMEFRAMEWORK_DIR}/build ${MKL_DIR}/lib/intel64_lin/ ${MKL_DIR}/lib/intel64)
+include_directories(${GAMEFRAMEWORK_DIR}/src/cpp ${FREETYPE_DIR})
+link_directories(${GAMEFRAMEWORK_DIR}/build)
 add_executable(MSNExample ${SOURCE_FILES_CPP} ${SOURCE_FILES_H})
 target_link_libraries(MSNExample GameFramework GLEW glfw GL freetype png)
 

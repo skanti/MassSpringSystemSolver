@@ -45,6 +45,7 @@ public:
     void delete_nodes(float px, float py);
 
 private:
+    int i_counter;
     int flag;
     std::mt19937 mt;
     std::normal_distribution<double> dist_normal;
@@ -55,18 +56,15 @@ private:
     Eigen::SimplicialLDLT<SparseMatrix<double>> chol;
     Nodes<double> nodes;
     Springs<double> springs;
-    Vector<int> T0;
-    Vector<int> T1;
-    Vector<int> T2;
-    Vector<int> S0;
-    Vector<int> V0;
     SparseMatrix<double> A;
     SparseMatrix<double> J;
     SparseMatrixCSR<double> J1;
-    std::unordered_map<int64_t, unsigned char> L;
+    std::unordered_map<int64_t, int32_t> L;
     SparseMatrix<double> Q;
     SparseMatrix<double> Qinv;
     SparseMatrix<double> M;
+    SparseMatrix<double> H;
+    Vector<double> G;
     Vector<double> f_gravity;
     Vector<double> fx_langevin;
     Vector<double> fy_langevin;
