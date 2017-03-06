@@ -32,6 +32,8 @@ MSNWorld::MSNWorld() : World() {
     Q.resize(N_MAX_NODES, N_MAX_NODES);
     M.reserve(N_MAX_NODES);
     M.resize(N_MAX_NODES, N_MAX_NODES);
+    MH1.reserve(9*N_MAX_NODES);
+    MH1.resize(3*N_MAX_NODES, 3*N_MAX_NODES);
     H.reserve(3*(N_MAX_NODES + 2*N_MAX_SPRINGS));
     H.resize(3*N_MAX_NODES, 3*N_MAX_NODES);
     G.resize(3*N_MAX_NODES);
@@ -44,9 +46,10 @@ MSNWorld::MSNWorld() : World() {
     springs.set_as_equilibrium(nodes.px, nodes.py, nodes.pz, A);
     // <-
 
+    MH1.setIdentity();
     M.setIdentity();
-    M.valuePtr()[0] = 1e6;
-    M.valuePtr()[N_CLOTH - 1] = 1e6;
+    // M.valuePtr()[0] = 1e6;
+    // M.valuePtr()[N_CLOTH - 1] = 1e6;
 
     mt.seed(999);
 
@@ -80,13 +83,22 @@ MSNWorld::MSNWorld() : World() {
     }
     // <-    
 
+
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> H11 = H.block(0, 0, 3*nodes.n_size, 3*nodes.n_size);
+    std::cout << H11 << std::endl;
+
+    for (int i = 0; i < 3*nodes.n_size + 1; i++) {
+        std::cout << H.outerIndexPtr()[i] << " ";
+    }
+    std::cout << std::endl;
+    
     // -> create spring hashmap
     for (int i = 0, k = 0; i < nodes.n_size; i++) {
         for (int j = Q.outerIndexPtr()[i]; j < Q.outerIndexPtr()[i + 1]; j++) {
-            int64_t a = Q.innerIndexPtr()[j];
-            int64_t b = i;
-            if (a > b) {
-                int64_t c = (b << 32) + a;
+            int64_t a = i;
+            int64_t b = Q.innerIndexPtr()[j];
+            if (b > a) {
+                int64_t c = (a << 32) + b;
                 L.insert({c, k++});
             }
         }
@@ -260,19 +272,20 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     // std::generate(&fy_langevin[0], &fy_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
     // std::generate(&fz_langevin[0], &fz_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
 
-    if (1) {
-        nodes.qx.block(0, 0, nodes.n_size, 1) = nodes.px.block(0, 0, nodes.n_size, 1) + nodes.vx.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f); 
-        nodes.qy.block(0, 0, nodes.n_size, 1) = nodes.py.block(0, 0, nodes.n_size, 1) + nodes.vy.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f);
-        nodes.qz.block(0, 0, nodes.n_size, 1) = nodes.pz.block(0, 0, nodes.n_size, 1) + nodes.vz.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f);
+    nodes.qx.block(0, 0, nodes.n_size, 1) = nodes.px.block(0, 0, nodes.n_size, 1) + nodes.vx.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f); 
+    nodes.qy.block(0, 0, nodes.n_size, 1) = nodes.py.block(0, 0, nodes.n_size, 1) + nodes.vy.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f);
+    nodes.qz.block(0, 0, nodes.n_size, 1) = nodes.pz.block(0, 0, nodes.n_size, 1) + nodes.vz.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f);
 
-        
-        nodes.vx.block(0, 0, nodes.n_size, 1) = nodes.px.block(0, 0, nodes.n_size, 1);
-        nodes.vy.block(0, 0, nodes.n_size, 1) = nodes.py.block(0, 0, nodes.n_size, 1);
-        nodes.vz.block(0, 0, nodes.n_size, 1) = nodes.pz.block(0, 0, nodes.n_size, 1);
-        
-        nodes.px.block(0, 0, nodes.n_size, 1) = nodes.qx.block(0, 0, nodes.n_size, 1); 
-        nodes.py.block(0, 0, nodes.n_size, 1) = nodes.qy.block(0, 0, nodes.n_size, 1);
-        nodes.pz.block(0, 0, nodes.n_size, 1) = nodes.qz.block(0, 0, nodes.n_size, 1);
+    
+    nodes.vx.block(0, 0, nodes.n_size, 1) = nodes.px.block(0, 0, nodes.n_size, 1);
+    nodes.vy.block(0, 0, nodes.n_size, 1) = nodes.py.block(0, 0, nodes.n_size, 1);
+    nodes.vz.block(0, 0, nodes.n_size, 1) = nodes.pz.block(0, 0, nodes.n_size, 1);
+    
+    nodes.px.block(0, 0, nodes.n_size, 1) = nodes.qx.block(0, 0, nodes.n_size, 1); 
+    nodes.py.block(0, 0, nodes.n_size, 1) = nodes.qy.block(0, 0, nodes.n_size, 1);
+    nodes.pz.block(0, 0, nodes.n_size, 1) = nodes.qz.block(0, 0, nodes.n_size, 1);
+
+    if (0) {
 
         for (int i = 0; i < 20; i++) {
             springs.dx_rhs.block(0, 0, springs.n_size, 1) = (nodes.px.block(0, 0, nodes.n_size, 1).transpose()*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
@@ -302,15 +315,7 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
             nodes.pz[N_CLOTH - 1] = 0.2*std::sin(iteration_counter*5e-3);    
         }
 
-        nodes.vx.block(0, 0, nodes.n_size, 1) = (nodes.px.block(0, 0, nodes.n_size, 1) - nodes.vx.block(0, 0, nodes.n_size, 1))/dt;
-        nodes.vy.block(0, 0, nodes.n_size, 1) = (nodes.py.block(0, 0, nodes.n_size, 1) - nodes.vy.block(0, 0, nodes.n_size, 1))/dt;
-        nodes.vz.block(0, 0, nodes.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1) - nodes.vz.block(0, 0, nodes.n_size, 1))/dt;
-
     } else {
-
-        nodes.qx.block(0, 0, nodes.n_size, 1) = nodes.px.block(0, 0, nodes.n_size, 1) - nodes.vx.block(0, 0, nodes.n_size, 1)*dt; 
-        nodes.qy.block(0, 0, nodes.n_size, 1) = nodes.py.block(0, 0, nodes.n_size, 1) - nodes.vy.block(0, 0, nodes.n_size, 1)*dt;
-        nodes.qz.block(0, 0, nodes.n_size, 1) = nodes.pz.block(0, 0, nodes.n_size, 1) - nodes.vz.block(0, 0, nodes.n_size, 1)*dt;
         
         for (int l = 0; l < 10; l++) {
             G.setZero();
@@ -332,59 +337,88 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
             }
             
             for (int i = 0; i < nodes.n_size; i++) {
-                G[3*i + 0] = M.valuePtr()[i]*(nodes.px[i] - nodes.qx[i]) + h2*(G[3*i + 0] - nodes.vx[i]*dt + fx_langevin[i]);
-                G[3*i + 1] = M.valuePtr()[i]*(nodes.py[i] - nodes.qy[i]) + h2*(G[3*i + 1] - nodes.vy[i]*dt + fy_langevin[i] - f_gravity[i]);
-                G[3*i + 2] = M.valuePtr()[i]*(nodes.pz[i] - nodes.qz[i]) + h2*(G[3*i + 2] - nodes.vz[i]*dt + fz_langevin[i]);
+                G[3*i + 0] = M.valuePtr()[i]*(nodes.px[i] - nodes.qx[i]) + h2*(G[3*i + 0] + fx_langevin[i]);
+                G[3*i + 1] = M.valuePtr()[i]*(nodes.py[i] - nodes.qy[i]) + h2*(G[3*i + 1] + fy_langevin[i] - f_gravity[i]);
+                G[3*i + 2] = M.valuePtr()[i]*(nodes.pz[i] - nodes.qz[i]) + h2*(G[3*i + 2] + fz_langevin[i]);
             }
-            H.setZero();
+            // std::cout << G.block(0, 0, 3*nodes.n_size, 1).squaredNorm() << std::endl;
 
-            for (int i = 0; i < nodes.n_size; i++) {
-                for (int j = Q.outerIndexPtr()[i]; j < Q.outerIndexPtr()[i + 1]; j++) {
-                    int64_t a = Q.innerIndexPtr()[j];
-                    int64_t b = i;
-                    if (a > b) {
-                        int64_t c = (b << 32) + a;
+            std::fill(&H.valuePtr()[0], &H.valuePtr()[0] + 3*(N_MAX_NODES + 2*N_MAX_SPRINGS), 0);
+
+            for (int i = 0, k = 0; i < nodes.n_size; i++) {
+                for (int j = Q.outerIndexPtr()[i]; j < Q.outerIndexPtr()[i + 1]; j++, k++) {
+                    int64_t a0 = i;
+                    int64_t b0 = Q.innerIndexPtr()[j];
+                    if (b0 > a0) {
+                        int64_t c = (a0 << 32) + b0;
                         int32_t s = L[c];
-                        
-                        double dx = nodes.px[b] - nodes.px[a];
-                        double dy = nodes.py[b] - nodes.py[a];
-                        double dz = nodes.pz[b] - nodes.pz[a];
+
+                        double dx = nodes.px[b0] - nodes.px[a0];
+                        double dy = nodes.py[b0] - nodes.py[a0];
+                        double dz = nodes.pz[b0] - nodes.pz[a0];
                         double d = std::sqrt(dx*dx + dy*dy + dz*dz);
 
                         Eigen::Vector3d pab(dx, dy, dz);
 
                         Eigen::Matrix3d H1 = Eigen::Matrix3d::Identity() - springs.d[s]/d*(Eigen::Matrix3d::Identity() - pab*pab.transpose()/(d*d));
 
+                        int32_t a1 = H.outerIndexPtr()[a0*3 + 0];
+                        int32_t a2 = H.outerIndexPtr()[a0*3 + 1];
+                        int32_t a3 = H.outerIndexPtr()[a0*3 + 2];
 
-                        H.valuePtr()[3*a + 0] += H1.col(0).sum();
-                        H.valuePtr()[3*a + 1] += H1.col(1).sum();
-                        H.valuePtr()[3*a + 2] += H1.col(2).sum();
+                        int32_t b1 = H.outerIndexPtr()[b0*3 + 0];
+                        int32_t b2 = H.outerIndexPtr()[b0*3 + 1];
+                        int32_t b3 = H.outerIndexPtr()[b0*3 + 2];
+                    
+                #define HADD(r0, r1, r2, c0, o0) {\
+                    H.valuePtr()[r0 + 3*c0 + 0] += o0*H1(0, 0);\
+                    H.valuePtr()[r0 + 3*c0 + 1] += o0*H1(1, 0);\
+                    H.valuePtr()[r0 + 3*c0 + 2] += o0*H1(2, 0);\
+                    H.valuePtr()[r1 + 3*c0 + 0] += o0*H1(0, 1);\
+                    H.valuePtr()[r1 + 3*c0 + 1] += o0*H1(1, 1);\
+                    H.valuePtr()[r1 + 3*c0 + 2] += o0*H1(2, 1);\
+                    H.valuePtr()[r2 + 3*c0 + 0] += o0*H1(0, 2);\
+                    H.valuePtr()[r2 + 3*c0 + 1] += o0*H1(1, 2);\
+                    H.valuePtr()[r2 + 3*c0 + 2] += o0*H1(2, 2);\
+                };
+                        HADD(a1, a2, a3, a0, 1.0);
+                        HADD(a1, a2, a3, b0, -1.0);
+                        HADD(b1, b2, b3, a0, -1.0);
+                        HADD(b1, b2, b3, b0, 1.0);
 
-                        H.valuePtr()[3*b + 0] +=  H1.col(0).sum();
-                        H.valuePtr()[3*b + 1] +=  H1.col(1).sum();
-                        H.valuePtr()[3*b + 2] +=  H1.col(2).sum();
                     }
                 }
             }
 
-            H.leftCols(nodes.n_size) = M.leftCols(nodes.n_size) + h2*H.leftCols(nodes.n_size);
+            // Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> H11 = H.block(0, 0, 3*nodes.n_size, 3*nodes.n_size);
+            // std::cout << H11 << std::endl;
+            // exit(0); 
+
+            H.leftCols(3*nodes.n_size) = MH1.leftCols(3*nodes.n_size) + h2*H.leftCols(3*nodes.n_size);
+
 
             Eigen::SimplicialLDLT<SparseMatrix<double>> ldlt_solver;
             ldlt_solver.compute(H.block(0, 0, 3*nodes.n_size, 3*nodes.n_size));
 
-            Vector<double> desc = -ldlt_solver.solve(G.block(0, 0, nodes.n_size, 1));
+            Vector<double> desc = -ldlt_solver.solve(G.block(0, 0, 3*nodes.n_size, 1));
 
 
             for (int i = 0; i < nodes.n_size; i++) {
-                nodes.px[i] = nodes.px[i] + dt*desc[3*i + 0];
-                nodes.py[i] = nodes.py[i] + dt*desc[3*i + 1];
-                nodes.pz[i] = nodes.pz[i] + dt*desc[3*i + 2];
+                nodes.px[i] = nodes.px[i] - dt*desc[3*i + 0];
+                nodes.py[i] = nodes.py[i] - dt*desc[3*i + 1];
+                nodes.pz[i] = nodes.pz[i] - dt*desc[3*i + 2];
             }
             
+            // nodes.pz[0] = 0.2*std::sin(iteration_counter*5e-3);
+            // nodes.pz[N_CLOTH - 1] = 0.2*std::sin(iteration_counter*5e-3);   
         }
     }
 
-    // exit(0);q
+    nodes.vx.block(0, 0, nodes.n_size, 1) = (nodes.px.block(0, 0, nodes.n_size, 1) - nodes.vx.block(0, 0, nodes.n_size, 1))/dt;
+    nodes.vy.block(0, 0, nodes.n_size, 1) = (nodes.py.block(0, 0, nodes.n_size, 1) - nodes.vy.block(0, 0, nodes.n_size, 1))/dt;
+    nodes.vz.block(0, 0, nodes.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1) - nodes.vz.block(0, 0, nodes.n_size, 1))/dt;
+
+    // exit(0);
 
     // if (iteration_counter%60 == 0 && i_counter++ < 60) {
     //     std::ofstream file;

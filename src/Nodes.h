@@ -19,6 +19,9 @@ struct Nodes {
         qx.resize(n_size_reserve);
         qy.resize(n_size_reserve);
         qz.resize(n_size_reserve);
+        ix.resize(n_size_reserve);
+        iy.resize(n_size_reserve);
+        iz.resize(n_size_reserve);
         vx.resize(n_size_reserve);
         vy.resize(n_size_reserve);
         vz.resize(n_size_reserve);
@@ -74,6 +77,9 @@ struct Nodes {
     Vector<value_type> qx;
     Vector<value_type> qy;
     Vector<value_type> qz;
+    Vector<value_type> ix;
+    Vector<value_type> iy;
+    Vector<value_type> iz;
     Vector<value_type> vx;
     Vector<value_type> vy;
     Vector<value_type> vz;
