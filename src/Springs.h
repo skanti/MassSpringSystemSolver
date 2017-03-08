@@ -78,5 +78,6 @@ struct Springs {
     Vector<value_type> dx_rhs;
     Vector<value_type> dy_rhs;
     Vector<value_type> dz_rhs;
+    
 };
 

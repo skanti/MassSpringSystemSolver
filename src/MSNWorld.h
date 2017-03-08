@@ -64,6 +64,7 @@ private:
     SparseMatrix<double> Q;
     SparseMatrix<double> Qinv;
     SparseMatrix<double> M;
+    SparseMatrix<double> K;
     SparseMatrix<double> MH1;
     SparseMatrix<double> H;
     Vector<double> G;

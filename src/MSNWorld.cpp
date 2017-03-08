@@ -7,10 +7,10 @@
 #include <iostream>
 #include <fstream>
 
-const double dt = 1.0/60.0;
+const double dt = 0.2;
 #define N_MAX_NODES 5000
 #define N_MAX_SPRINGS 10000
-#define N_CLOTH 10
+#define N_CLOTH 30
 
 MSNWorld::MSNWorld() : World() {
     flag = 1;
@@ -32,6 +32,8 @@ MSNWorld::MSNWorld() : World() {
     Q.resize(N_MAX_NODES, N_MAX_NODES);
     M.reserve(N_MAX_NODES);
     M.resize(N_MAX_NODES, N_MAX_NODES);
+    K.reserve(N_MAX_SPRINGS);
+    K.resize(N_MAX_SPRINGS, N_MAX_SPRINGS);
     MH1.reserve(3*N_MAX_NODES);
     MH1.resize(3*N_MAX_NODES, 3*N_MAX_NODES);
     H.reserve(3*(N_MAX_NODES + 2*N_MAX_SPRINGS));
@@ -58,15 +60,19 @@ MSNWorld::MSNWorld() : World() {
     M.valuePtr()[0] = 1e6;
     M.valuePtr()[N_CLOTH - 1] = 1e6;
 
+    K.setIdentity();
+    std::fill(&K.valuePtr()[0], &K.valuePtr()[0] + N_MAX_SPRINGS, 10);
+
     mt.seed(999);
 
-    f_gravity = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, -0.001f);
+    f_gravity = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, -0.0005f);
     fx_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
     fy_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
     fz_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
 
     J.leftCols(springs.n_size) = A.leftCols(springs.n_size);
-    Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) + (SparseMatrix<double>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
+    Q.leftCols(nodes.n_size) = M.block(0, 0, nodes.n_size, nodes.n_size) 
+    + (SparseMatrix<double>)(dt*dt*J.block(0, 0, nodes.n_size, springs.n_size)*K.block(0, 0, springs.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size).transpose());
     chol.compute(Q.block(0,0, nodes.n_size, nodes.n_size));
 
     // -> set up hessian CSC container
@@ -278,8 +284,8 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     
     double h2 = dt*dt;
 
-    nodes.pz[0] = 0.2*std::sin(iteration_counter*5e-3);
-    nodes.pz[N_CLOTH - 1] = 0.2*std::sin(iteration_counter*5e-3);
+    nodes.pz[0] = 0.4*std::sin(iteration_counter*1e-2);
+    nodes.pz[N_CLOTH - 1] = 0.4*std::sin(iteration_counter*1e-2);
 
     // std::generate(&fx_langevin[0], &fx_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
     // std::generate(&fy_langevin[0], &fy_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
@@ -298,12 +304,12 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     nodes.py.block(0, 0, nodes.n_size, 1) = nodes.qy.block(0, 0, nodes.n_size, 1);
     nodes.pz.block(0, 0, nodes.n_size, 1) = nodes.qz.block(0, 0, nodes.n_size, 1);
 
-    if (0) {
+    if (1) {
 
-        for (int i = 0; i < 1; i++) {
-            springs.dx_rhs.block(0, 0, springs.n_size, 1) = (nodes.px.block(0, 0, nodes.n_size, 1).transpose()*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
-            springs.dy_rhs.block(0, 0, springs.n_size, 1) = (nodes.py.block(0, 0, nodes.n_size, 1).transpose()*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
-            springs.dz_rhs.block(0, 0, springs.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1).transpose()*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
+        for (int i = 0; i < 10; i++) {
+            springs.dx_rhs.block(0, 0, springs.n_size, 1) = (nodes.px.block(0, 0, nodes.n_size, 1).transpose()*K.block(0, 0, springs.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
+            springs.dy_rhs.block(0, 0, springs.n_size, 1) = (nodes.py.block(0, 0, nodes.n_size, 1).transpose()*K.block(0, 0, springs.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
+            springs.dz_rhs.block(0, 0, springs.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1).transpose()*K.block(0, 0, springs.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
 
             for (int j = 0; j < springs.n_size; j++) {
                 springs.d_rhs[j] = std::sqrt(springs.dx_rhs[j]*springs.dx_rhs[j] + springs.dy_rhs[j]*springs.dy_rhs[j] + springs.dz_rhs[j]*springs.dz_rhs[j]);
@@ -312,12 +318,12 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
                 springs.dz[j] = springs.d[j]*springs.dz_rhs[j]/springs.d_rhs[j];
             }
 
-            nodes.px_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qx.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)*springs.dx.block(0, 0, springs.n_size, 1) 
-                + fx_langevin.block(0, 0, nodes.n_size, 1));
-            nodes.py_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qy.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)*springs.dy.block(0, 0, springs.n_size, 1) 
-                + fy_langevin.block(0, 0, nodes.n_size, 1) + f_gravity.block(0, 0, nodes.n_size, 1));
-            nodes.pz_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qz.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)*springs.dz.block(0, 0, springs.n_size, 1)
-                + fz_langevin.block(0, 0, nodes.n_size, 1));
+            nodes.px_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qx.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)
+                *K.block(0, 0, springs.n_size, springs.n_size)*springs.dx.block(0, 0, springs.n_size, 1) + fx_langevin.block(0, 0, nodes.n_size, 1));
+            nodes.py_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qy.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)
+                *K.block(0, 0, springs.n_size, springs.n_size)*springs.dy.block(0, 0, springs.n_size, 1) + fy_langevin.block(0, 0, nodes.n_size, 1) + f_gravity.block(0, 0, nodes.n_size, 1));
+            nodes.pz_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qz.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)
+                *K.block(0, 0, springs.n_size, springs.n_size)*springs.dz.block(0, 0, springs.n_size, 1) + fz_langevin.block(0, 0, nodes.n_size, 1));
 
 
             nodes.px.block(0, 0, nodes.n_size, 1) = chol.solve(nodes.px_rhs.block(0, 0, nodes.n_size, 1));
@@ -339,13 +345,13 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
                 double dy = nodes.py[a] - nodes.py[b];
                 double dz = nodes.pz[a] - nodes.pz[b];
                 double d = std::sqrt(dx*dx + dy*dy + dz*dz);
-                G[3*a + 0] += 1.0*(d - springs.d[i])*dx/d;
-                G[3*a + 1] += 1.0*(d - springs.d[i])*dy/d;
-                G[3*a + 2] += 1.0*(d - springs.d[i])*dz/d;
+                G[3*a + 0] += K.valuePtr()[i]*(d - springs.d[i])*dx/d;
+                G[3*a + 1] += K.valuePtr()[i]*(d - springs.d[i])*dy/d;
+                G[3*a + 2] += K.valuePtr()[i]*(d - springs.d[i])*dz/d;
 
-                G[3*b + 0] -= 1.0*(d - springs.d[i])*dx/d;
-                G[3*b + 1] -= 1.0*(d - springs.d[i])*dy/d;
-                G[3*b + 2] -= 1.0*(d - springs.d[i])*dz/d;
+                G[3*b + 0] -= K.valuePtr()[i]*(d - springs.d[i])*dx/d;
+                G[3*b + 1] -= K.valuePtr()[i]*(d - springs.d[i])*dy/d;
+                G[3*b + 2] -= K.valuePtr()[i]*(d - springs.d[i])*dz/d;
             }
             
             for (int i = 0; i < nodes.n_size; i++) {
@@ -375,7 +381,7 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
 
                         Eigen::Vector3d pab(dx, dy, dz);
 
-                        Eigen::Matrix3d H1 = Eigen::Matrix3d::Identity() - springs.d[s]/d*(Eigen::Matrix3d::Identity() - pab*pab.transpose()/(d*d));
+                        Eigen::Matrix3d H1 = K.valuePtr()[s]*(Eigen::Matrix3d::Identity() - springs.d[s]/d*(Eigen::Matrix3d::Identity() - pab*pab.transpose()/(d*d)));
 
                         int32_t a1 = H.outerIndexPtr()[a0*3 + 0];
                         int32_t a2 = H.outerIndexPtr()[a0*3 + 1];
