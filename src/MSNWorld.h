@@ -60,6 +60,7 @@ private:
     SparseMatrix<double> J;
     SparseMatrixCSR<double> J1;
     std::unordered_map<int64_t, int32_t> L;
+    std::unordered_map<int64_t, int32_t> L1;
     SparseMatrix<double> Q;
     SparseMatrix<double> Qinv;
     SparseMatrix<double> M;

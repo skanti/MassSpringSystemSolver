@@ -8,9 +8,9 @@
 #include <fstream>
 
 const double dt = 1.0/60.0;
-#define N_MAX_NODES 100
-#define N_MAX_SPRINGS 100
-#define N_CLOTH 3
+#define N_MAX_NODES 5000
+#define N_MAX_SPRINGS 10000
+#define N_CLOTH 10
 
 MSNWorld::MSNWorld() : World() {
     flag = 1;
@@ -32,7 +32,7 @@ MSNWorld::MSNWorld() : World() {
     Q.resize(N_MAX_NODES, N_MAX_NODES);
     M.reserve(N_MAX_NODES);
     M.resize(N_MAX_NODES, N_MAX_NODES);
-    MH1.reserve(9*N_MAX_NODES);
+    MH1.reserve(3*N_MAX_NODES);
     MH1.resize(3*N_MAX_NODES, 3*N_MAX_NODES);
     H.reserve(3*(N_MAX_NODES + 2*N_MAX_SPRINGS));
     H.resize(3*N_MAX_NODES, 3*N_MAX_NODES);
@@ -47,13 +47,20 @@ MSNWorld::MSNWorld() : World() {
     // <-
 
     MH1.setIdentity();
+    MH1.valuePtr()[0] = 1e6;
+    MH1.valuePtr()[1] = 1e6;
+    MH1.valuePtr()[2] = 1e6;
+    MH1.valuePtr()[3*(N_CLOTH - 1) + 0] = 1e6;
+    MH1.valuePtr()[3*(N_CLOTH - 1) + 1] = 1e6;
+    MH1.valuePtr()[3*(N_CLOTH - 1) + 2] = 1e6;
+
     M.setIdentity();
-    // M.valuePtr()[0] = 1e6;
-    // M.valuePtr()[N_CLOTH - 1] = 1e6;
+    M.valuePtr()[0] = 1e6;
+    M.valuePtr()[N_CLOTH - 1] = 1e6;
 
     mt.seed(999);
 
-    f_gravity = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0.001f);
+    f_gravity = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, -0.001f);
     fx_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
     fy_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
     fz_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
@@ -84,23 +91,28 @@ MSNWorld::MSNWorld() : World() {
     // <-    
 
 
-    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> H11 = H.block(0, 0, 3*nodes.n_size, 3*nodes.n_size);
-    std::cout << H11 << std::endl;
+    // Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> H11 = H.block(0, 0, 3*nodes.n_size, 3*nodes.n_size);
+    // std::cout << H11 << std::endl;
+    // std::cout << "*********" << std::endl;
+    // exit(0);
 
-    for (int i = 0; i < 3*nodes.n_size + 1; i++) {
-        std::cout << H.outerIndexPtr()[i] << " ";
-    }
-    std::cout << std::endl;
+    // for (int i = 0; i < 3*nodes.n_size + 1; i++) {
+    //     std::cout << H.outerIndexPtr()[i] << " ";
+    // }
+    // std::cout << std::endl;
     
     // -> create spring hashmap
     for (int i = 0, k = 0; i < nodes.n_size; i++) {
-        for (int j = Q.outerIndexPtr()[i]; j < Q.outerIndexPtr()[i + 1]; j++) {
+        for (int j = Q.outerIndexPtr()[i], m = 0; j < Q.outerIndexPtr()[i + 1]; j++, m++) {
             int64_t a = i;
             int64_t b = Q.innerIndexPtr()[j];
-            if (b > a) {
-                int64_t c = (a << 32) + b;
+            int64_t c = (a << 32) + b;
+
+            if(L1.find(c) == L1.end()) 
+                L1.insert({c, m});
+
+            if (b > a) 
                 L.insert({c, k++});
-            }
         }
     }
     // <- 
@@ -202,6 +214,7 @@ void MSNWorld::init_drawable() {
 };
 
 void MSNWorld::draw() {
+    
     glUseProgram(mass_spring_program.id);
     glBindVertexArray(vao.vao_id);
 
@@ -227,7 +240,7 @@ void MSNWorld::draw() {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2*springs.n_size*sizeof(GLuint), vao.s_ab.data(), GL_DYNAMIC_DRAW);
     glDrawElements(GL_LINES, 2*springs.n_size, GL_UNSIGNED_INT, 0);
     // <-
-
+    
 };
 
 void MSNWorld::gather_for_rendering() {
@@ -287,7 +300,7 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
 
     if (0) {
 
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 1; i++) {
             springs.dx_rhs.block(0, 0, springs.n_size, 1) = (nodes.px.block(0, 0, nodes.n_size, 1).transpose()*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
             springs.dy_rhs.block(0, 0, springs.n_size, 1) = (nodes.py.block(0, 0, nodes.n_size, 1).transpose()*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
             springs.dz_rhs.block(0, 0, springs.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1).transpose()*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
@@ -302,7 +315,7 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
             nodes.px_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qx.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)*springs.dx.block(0, 0, springs.n_size, 1) 
                 + fx_langevin.block(0, 0, nodes.n_size, 1));
             nodes.py_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qy.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)*springs.dy.block(0, 0, springs.n_size, 1) 
-                + fy_langevin.block(0, 0, nodes.n_size, 1) - f_gravity.block(0, 0, nodes.n_size, 1));
+                + fy_langevin.block(0, 0, nodes.n_size, 1) + f_gravity.block(0, 0, nodes.n_size, 1));
             nodes.pz_rhs.block(0, 0, nodes.n_size, 1) = M.block(0, 0, nodes.n_size, nodes.n_size)*nodes.qz.block(0, 0, nodes.n_size, 1) + h2*(J.block(0, 0, nodes.n_size, springs.n_size)*springs.dz.block(0, 0, springs.n_size, 1)
                 + fz_langevin.block(0, 0, nodes.n_size, 1));
 
@@ -311,21 +324,20 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
             nodes.py.block(0, 0, nodes.n_size, 1) = chol.solve(nodes.py_rhs.block(0, 0, nodes.n_size, 1));
             nodes.pz.block(0, 0, nodes.n_size, 1) = chol.solve(nodes.pz_rhs.block(0, 0, nodes.n_size, 1));
 
-            nodes.pz[0] = 0.2*std::sin(iteration_counter*5e-3);
-            nodes.pz[N_CLOTH - 1] = 0.2*std::sin(iteration_counter*5e-3);    
+            // nodes.pz[0] = 0.2*std::sin(iteration_counter*5e-3);
+            // nodes.pz[N_CLOTH - 1] = 0.2*std::sin(iteration_counter*5e-3);    
         }
 
     } else {
         
-        for (int l = 0; l < 10; l++) {
-            G.setZero();
-
+        for (int l = 0; l < 5; l++) {
+            std::fill(&G[0], &G[0] + 3*nodes.n_size, 0);
             for (int i = 0; i < springs.n_size; i++) {
                 int a = J.innerIndexPtr()[i*2 + 0];
                 int b = J.innerIndexPtr()[i*2 + 1];
-                double dx = nodes.px[b] - nodes.px[a];
-                double dy = nodes.py[b] - nodes.py[a];
-                double dz = nodes.pz[b] - nodes.pz[a];
+                double dx = nodes.px[a] - nodes.px[b];
+                double dy = nodes.py[a] - nodes.py[b];
+                double dz = nodes.pz[a] - nodes.pz[b];
                 double d = std::sqrt(dx*dx + dy*dy + dz*dz);
                 G[3*a + 0] += 1.0*(d - springs.d[i])*dx/d;
                 G[3*a + 1] += 1.0*(d - springs.d[i])*dy/d;
@@ -343,19 +355,22 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
             }
             // std::cout << G.block(0, 0, 3*nodes.n_size, 1).squaredNorm() << std::endl;
 
-            std::fill(&H.valuePtr()[0], &H.valuePtr()[0] + 3*(N_MAX_NODES + 2*N_MAX_SPRINGS), 0);
+            std::fill(&H.valuePtr()[0], &H.valuePtr()[0] + 9*(nodes.n_size + 2*springs.n_size), 0);
 
             for (int i = 0, k = 0; i < nodes.n_size; i++) {
                 for (int j = Q.outerIndexPtr()[i]; j < Q.outerIndexPtr()[i + 1]; j++, k++) {
                     int64_t a0 = i;
                     int64_t b0 = Q.innerIndexPtr()[j];
                     if (b0 > a0) {
-                        int64_t c = (a0 << 32) + b0;
-                        int32_t s = L[c];
+                        int64_t c0 = (a0 << 32) + b0;
+                        int64_t c1 = (b0 << 32) + a0;
+                        int64_t c2 = (a0 << 32) + a0;
+                        int64_t c3 = (b0 << 32) + b0;
+                        int32_t s = L[c0];
 
-                        double dx = nodes.px[b0] - nodes.px[a0];
-                        double dy = nodes.py[b0] - nodes.py[a0];
-                        double dz = nodes.pz[b0] - nodes.pz[a0];
+                        double dx = nodes.px[a0] - nodes.px[b0];
+                        double dy = nodes.py[a0] - nodes.py[b0];
+                        double dz = nodes.pz[a0] - nodes.pz[b0];
                         double d = std::sqrt(dx*dx + dy*dy + dz*dz);
 
                         Eigen::Vector3d pab(dx, dy, dz);
@@ -369,46 +384,46 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
                         int32_t b1 = H.outerIndexPtr()[b0*3 + 0];
                         int32_t b2 = H.outerIndexPtr()[b0*3 + 1];
                         int32_t b3 = H.outerIndexPtr()[b0*3 + 2];
+
+                        int32_t a4 = L1[c2];
+                        int32_t b4 = L1[c3];
+                        int32_t ab4 = L1[c0];
+                        int32_t ba4 = L1[c1];
                     
-                #define HADD(r0, r1, r2, c0, o0) {\
-                    H.valuePtr()[r0 + 3*c0 + 0] += o0*H1(0, 0);\
-                    H.valuePtr()[r0 + 3*c0 + 1] += o0*H1(1, 0);\
-                    H.valuePtr()[r0 + 3*c0 + 2] += o0*H1(2, 0);\
-                    H.valuePtr()[r1 + 3*c0 + 0] += o0*H1(0, 1);\
-                    H.valuePtr()[r1 + 3*c0 + 1] += o0*H1(1, 1);\
-                    H.valuePtr()[r1 + 3*c0 + 2] += o0*H1(2, 1);\
-                    H.valuePtr()[r2 + 3*c0 + 0] += o0*H1(0, 2);\
-                    H.valuePtr()[r2 + 3*c0 + 1] += o0*H1(1, 2);\
-                    H.valuePtr()[r2 + 3*c0 + 2] += o0*H1(2, 2);\
-                };
-                        HADD(a1, a2, a3, a0, 1.0);
-                        HADD(a1, a2, a3, b0, -1.0);
-                        HADD(b1, b2, b3, a0, -1.0);
-                        HADD(b1, b2, b3, b0, 1.0);
+                #define HADD(r0, r1, r2, c0, o0) { H.valuePtr()[r0 + 3*c0 + 0] += o0*H1(0,0);\
+                    H.valuePtr()[r0 + 3*c0 + 1] += o0*H1(1,0);\
+                    H.valuePtr()[r0 + 3*c0 + 2] += o0*H1(2,0);\
+                    H.valuePtr()[r1 + 3*c0 + 0] += o0*H1(0,1);\
+                    H.valuePtr()[r1 + 3*c0 + 1] += o0*H1(1,1);\
+                    H.valuePtr()[r1 + 3*c0 + 2] += o0*H1(2,1);\
+                    H.valuePtr()[r2 + 3*c0 + 0] += o0*H1(0,2);\
+                    H.valuePtr()[r2 + 3*c0 + 1] += o0*H1(1,2);\
+                    H.valuePtr()[r2 + 3*c0 + 2] += o0*H1(2,2);};
+
+
+                        HADD(a1, a2, a3, a4, 1.0);
+                        HADD(a1, a2, a3, ab4, -1.0);
+                        HADD(b1, b2, b3, ba4, -1.0);
+                        HADD(b1, b2, b3, b4, 1.0);
 
                     }
                 }
             }
 
-            // Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> H11 = H.block(0, 0, 3*nodes.n_size, 3*nodes.n_size);
-            // std::cout << H11 << std::endl;
-            // exit(0); 
-
             H.leftCols(3*nodes.n_size) = MH1.leftCols(3*nodes.n_size) + h2*H.leftCols(3*nodes.n_size);
-
 
             Eigen::SimplicialLDLT<SparseMatrix<double>> ldlt_solver;
             ldlt_solver.compute(H.block(0, 0, 3*nodes.n_size, 3*nodes.n_size));
 
-            Vector<double> desc = -ldlt_solver.solve(G.block(0, 0, 3*nodes.n_size, 1));
+            Vector<double> desc = ldlt_solver.solve(G.block(0, 0, 3*nodes.n_size, 1));
 
 
             for (int i = 0; i < nodes.n_size; i++) {
-                nodes.px[i] = nodes.px[i] - dt*desc[3*i + 0];
-                nodes.py[i] = nodes.py[i] - dt*desc[3*i + 1];
-                nodes.pz[i] = nodes.pz[i] - dt*desc[3*i + 2];
+                nodes.px[i] = nodes.px[i] - desc[3*i + 0];
+                nodes.py[i] = nodes.py[i] - desc[3*i + 1];
+                nodes.pz[i] = nodes.pz[i] - desc[3*i + 2];
             }
-            
+
             // nodes.pz[0] = 0.2*std::sin(iteration_counter*5e-3);
             // nodes.pz[N_CLOTH - 1] = 0.2*std::sin(iteration_counter*5e-3);   
         }
@@ -418,11 +433,10 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     nodes.vy.block(0, 0, nodes.n_size, 1) = (nodes.py.block(0, 0, nodes.n_size, 1) - nodes.vy.block(0, 0, nodes.n_size, 1))/dt;
     nodes.vz.block(0, 0, nodes.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1) - nodes.vz.block(0, 0, nodes.n_size, 1))/dt;
 
-    // exit(0);
 
     // if (iteration_counter%60 == 0 && i_counter++ < 60) {
     //     std::ofstream file;
-    //     file.open ("traj.dat", std::ios::app);
+    //     file.open ("traj00-i20.dat", std::ios::app);
     //     for (int i = 0; i < nodes.n_size; i++) {
     //         file << nodes.px[i] << " " << nodes.py[i] << " " << nodes.pz[i] << std::endl;
     //     }
@@ -430,7 +444,10 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     //     file.close();
     // }
 
-    J1.topRows(nodes.n_size) = J.leftCols(springs.n_size);    
+    // if (iteration_counter > 30*60)
+    //     exit(0);
+
+    // J1.topRows(nodes.n_size) = J.leftCols(springs.n_size);    
     gather_for_rendering();
 }
 
