@@ -7,16 +7,18 @@
 #include <iostream>
 #include <fstream>
 
-const double dt = 0.2;
+const double dt = 0.3;
 #define N_MAX_NODES 5000
-#define N_MAX_SPRINGS 10000
-#define N_CLOTH 30
+#define N_MAX_SPRINGS 20000
+#define N_CLOTH 40
 
-MSNWorld::MSNWorld() : World() {
+MSNWorld::MSNWorld() {
     flag = 1;
     is_floating = 0;
     i_counter = 0;
     zoom = 0.7f;
+    timer0 = 0;
+
     // -> reserve memory
     nodes.reserve(N_MAX_NODES);
     springs.reserve(N_MAX_SPRINGS);
@@ -61,11 +63,11 @@ MSNWorld::MSNWorld() : World() {
     M.valuePtr()[N_CLOTH - 1] = 1e6;
 
     K.setIdentity();
-    std::fill(&K.valuePtr()[0], &K.valuePtr()[0] + N_MAX_SPRINGS, 10);
+    std::fill(&K.valuePtr()[0], &K.valuePtr()[0] + N_MAX_SPRINGS, 50);
 
     mt.seed(999);
 
-    f_gravity = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, -0.0005f);
+    f_gravity = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, -0.001f);
     fx_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
     fy_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
     fz_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
@@ -123,10 +125,10 @@ MSNWorld::MSNWorld() : World() {
     }
     // <- 
     
-    init_shader();
-    init_shape();
-    init_instances();
-    init_drawable();
+    // init_shader();
+    // init_shape();
+    // init_instances();
+    // init_drawable();
 }
 
 void MSNWorld::init() {
@@ -284,8 +286,8 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     
     double h2 = dt*dt;
 
-    nodes.pz[0] = 0.4*std::sin(iteration_counter*1e-2);
-    nodes.pz[N_CLOTH - 1] = 0.4*std::sin(iteration_counter*1e-2);
+    nodes.pz[0] = 0.5*std::sin(iteration_counter*1e-2);
+    nodes.pz[N_CLOTH - 1] = 0.5*std::sin(iteration_counter*1e-2);
 
     // std::generate(&fx_langevin[0], &fx_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
     // std::generate(&fy_langevin[0], &fy_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
@@ -304,9 +306,10 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     nodes.py.block(0, 0, nodes.n_size, 1) = nodes.qy.block(0, 0, nodes.n_size, 1);
     nodes.pz.block(0, 0, nodes.n_size, 1) = nodes.qz.block(0, 0, nodes.n_size, 1);
 
+    Timer::start();
     if (1) {
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 20; i++) {
             springs.dx_rhs.block(0, 0, springs.n_size, 1) = (nodes.px.block(0, 0, nodes.n_size, 1).transpose()*K.block(0, 0, springs.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
             springs.dy_rhs.block(0, 0, springs.n_size, 1) = (nodes.py.block(0, 0, nodes.n_size, 1).transpose()*K.block(0, 0, springs.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
             springs.dz_rhs.block(0, 0, springs.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1).transpose()*K.block(0, 0, springs.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
@@ -336,7 +339,7 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
 
     } else {
         
-        for (int l = 0; l < 5; l++) {
+        for (int l = 0; l < 3; l++) {
             std::fill(&G[0], &G[0] + 3*nodes.n_size, 0);
             for (int i = 0; i < springs.n_size; i++) {
                 int a = J.innerIndexPtr()[i*2 + 0];
@@ -360,6 +363,11 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
                 G[3*i + 2] = M.valuePtr()[i]*(nodes.pz[i] - nodes.qz[i]) + h2*(G[3*i + 2] + fz_langevin[i]);
             }
             // std::cout << G.block(0, 0, 3*nodes.n_size, 1).squaredNorm() << std::endl;
+
+            // if (G.block(0, 0, 3*nodes.n_size, 1).squaredNorm() < 1e-15) {
+            //     std::cout << "break" << std::endl;
+            //     break;
+            // }
 
             std::fill(&H.valuePtr()[0], &H.valuePtr()[0] + 9*(nodes.n_size + 2*springs.n_size), 0);
 
@@ -435,26 +443,32 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
         }
     }
 
+    Timer::stop();
+
     nodes.vx.block(0, 0, nodes.n_size, 1) = (nodes.px.block(0, 0, nodes.n_size, 1) - nodes.vx.block(0, 0, nodes.n_size, 1))/dt;
     nodes.vy.block(0, 0, nodes.n_size, 1) = (nodes.py.block(0, 0, nodes.n_size, 1) - nodes.vy.block(0, 0, nodes.n_size, 1))/dt;
     nodes.vz.block(0, 0, nodes.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1) - nodes.vz.block(0, 0, nodes.n_size, 1))/dt;
 
 
-    // if (iteration_counter%60 == 0 && i_counter++ < 60) {
-    //     std::ofstream file;
-    //     file.open ("traj00-i20.dat", std::ios::app);
-    //     for (int i = 0; i < nodes.n_size; i++) {
-    //         file << nodes.px[i] << " " << nodes.py[i] << " " << nodes.pz[i] << std::endl;
-    //     }
-    //     file << std::endl;
-    //     file.close();
-    // }
+    if (iteration_counter%60 == 0 && i_counter++ < 60) {
+        timer0 += Timer::get_timing();
 
-    // if (iteration_counter > 30*60)
-    //     exit(0);
+        std::ofstream file0;
+        file0.open ("traj1-vi20.dat", std::ios::app);
+        for (int i = 0; i < nodes.n_size; i++) {
+            file0 << nodes.px[i] << " " << nodes.py[i] << " " << nodes.pz[i] << std::endl;
+        }
+        file0 << std::endl;
+        file0.close();
+    }
+
+    if (iteration_counter > 20*60) {
+        std::cout << "timing: " << timer0/21.0 << std::endl;
+        exit(0);
+    }
 
     // J1.topRows(nodes.n_size) = J.leftCols(springs.n_size);    
-    gather_for_rendering();
+    // gather_for_rendering();
 }
 
 void MSNWorld::create_springs(int i_node) {

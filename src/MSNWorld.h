@@ -10,7 +10,7 @@
 #include "ImageManager.h"
 #include "Common.h"
 
-class MSNWorld : public ga::World {
+class MSNWorld {
 public:
     MSNWorld();
 
@@ -47,6 +47,7 @@ public:
 private:
     int i_counter;
     int flag;
+    double timer0;
     std::mt19937 mt;
     std::normal_distribution<double> dist_normal;
     std::uniform_int_distribution<int> dist_int_uniform;
