@@ -16,7 +16,10 @@ public:
 
     static void init();
 
+    static void kill();
+
     static MSNWorld &get_instance();
+
 
     void draw();
 
@@ -45,6 +48,7 @@ public:
     void delete_nodes(float px, float py);
 
 private:
+    std::string filename;
     int i_counter;
     int flag;
     double timer0;
@@ -73,6 +77,8 @@ private:
     Vector<double> fx_langevin;
     Vector<double> fy_langevin;
     Vector<double> fz_langevin;
+    Vector<double> px_tmp;
+    Vector<double> py_tmp;
     ga::VAOMassSpring3D vao;
     static std::unique_ptr<MSNWorld> msn2d_world;
 };

@@ -14,10 +14,17 @@ int main(int argc, char *argv[]) {
     // ga::Engine::get_instance().set_key_callback(&MSNWorld::keyboard_callback);
     // ga::Engine::get_instance().run();
 
-    MSNWorld::init();
-    for (std::size_t i = 0; i < 60*60; i++) {
-    	std::cout << i << std::endl;
-    	MSNWorld::get_instance().advance(i, i);
+    for (std::size_t i = 0; i < 1; i++) {
+        MSNWorld::init();
+        std::cout << "i_traj: " << (i + 1) << std::endl;
+        for (std::size_t j = 0; j < 20*60; j++) {
+            // std::cout << (j + 1) <<  "\r";
+            std::cout << (j + 1) <<  std::endl;
+        	MSNWorld::get_instance().advance(j, i);
+            fflush(stdout);
+        }
+        std::cout << std::endl;
+        MSNWorld::kill();
     }
     
     return 0;

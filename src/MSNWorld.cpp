@@ -9,8 +9,8 @@
 
 const double dt = 0.3;
 #define N_MAX_NODES 5000
-#define N_MAX_SPRINGS 20000
-#define N_CLOTH 40
+#define N_MAX_SPRINGS 30000
+#define N_CLOTH 50
 
 MSNWorld::MSNWorld() {
     flag = 1;
@@ -41,6 +41,8 @@ MSNWorld::MSNWorld() {
     H.reserve(3*(N_MAX_NODES + 2*N_MAX_SPRINGS));
     H.resize(3*N_MAX_NODES, 3*N_MAX_NODES);
     G.resize(3*N_MAX_NODES);
+    px_tmp.resize(2);
+    py_tmp.resize(2);
     // <-
 
     // -> load and set mesh
@@ -51,21 +53,25 @@ MSNWorld::MSNWorld() {
     // <-
 
     MH1.setIdentity();
-    MH1.valuePtr()[0] = 1e6;
-    MH1.valuePtr()[1] = 1e6;
-    MH1.valuePtr()[2] = 1e6;
-    MH1.valuePtr()[3*(N_CLOTH - 1) + 0] = 1e6;
-    MH1.valuePtr()[3*(N_CLOTH - 1) + 1] = 1e6;
-    MH1.valuePtr()[3*(N_CLOTH - 1) + 2] = 1e6;
+    // MH1.valuePtr()[0] = 1e6;
+    // MH1.valuePtr()[1] = 1e6;
+    // MH1.valuePtr()[2] = 1e6;
+    // MH1.valuePtr()[3*(N_CLOTH - 1) + 0] = 1e6;
+    // MH1.valuePtr()[3*(N_CLOTH - 1) + 1] = 1e6;
+    // MH1.valuePtr()[3*(N_CLOTH - 1) + 2] = 1e6;
 
     M.setIdentity();
-    M.valuePtr()[0] = 1e6;
-    M.valuePtr()[N_CLOTH - 1] = 1e6;
+    // M.valuePtr()[0] = 1e6;
+    // M.valuePtr()[N_CLOTH - 1] = 1e6;
+
+    px_tmp << nodes.px[0], nodes.px[N_CLOTH - 1];
+    py_tmp << nodes.py[0], nodes.py[N_CLOTH - 1];
 
     K.setIdentity();
     std::fill(&K.valuePtr()[0], &K.valuePtr()[0] + N_MAX_SPRINGS, 50);
 
-    mt.seed(999);
+    mt.seed(time(0));
+    // mt.seed(999);
 
     f_gravity = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, -0.001f);
     fx_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
@@ -125,6 +131,12 @@ MSNWorld::MSNWorld() {
     }
     // <- 
     
+    auto does_file_exist = [](std::string filename) { std::ifstream infile(filename); return infile.good();};
+    for (int i = 0; i < (1 << 20); i++) {
+        filename = std::string("newton10-traj") + std::to_string(i) + std::string(".dat");
+        if (!does_file_exist(filename)) break;   
+    }
+
     // init_shader();
     // init_shape();
     // init_instances();
@@ -133,6 +145,10 @@ MSNWorld::MSNWorld() {
 
 void MSNWorld::init() {
     if (!msn2d_world) msn2d_world = std::unique_ptr<MSNWorld>(new MSNWorld());
+}
+
+void MSNWorld::kill() {
+    msn2d_world.reset();
 }
 
 MSNWorld &MSNWorld::get_instance() {
@@ -286,8 +302,14 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     
     double h2 = dt*dt;
 
+    // -> fixed constraints
+    nodes.px[0] = px_tmp[0];
+    nodes.py[0] = py_tmp[0];
     nodes.pz[0] = 0.5*std::sin(iteration_counter*1e-2);
+    nodes.px[N_CLOTH - 1] = px_tmp[1];
+    nodes.py[N_CLOTH - 1] = py_tmp[1];
     nodes.pz[N_CLOTH - 1] = 0.5*std::sin(iteration_counter*1e-2);
+    // <-
 
     // std::generate(&fx_langevin[0], &fx_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
     // std::generate(&fy_langevin[0], &fy_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
@@ -307,9 +329,9 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     nodes.pz.block(0, 0, nodes.n_size, 1) = nodes.qz.block(0, 0, nodes.n_size, 1);
 
     Timer::start();
-    if (1) {
+    if (0) {
 
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 5; i++) {
             springs.dx_rhs.block(0, 0, springs.n_size, 1) = (nodes.px.block(0, 0, nodes.n_size, 1).transpose()*K.block(0, 0, springs.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
             springs.dy_rhs.block(0, 0, springs.n_size, 1) = (nodes.py.block(0, 0, nodes.n_size, 1).transpose()*K.block(0, 0, springs.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
             springs.dz_rhs.block(0, 0, springs.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1).transpose()*K.block(0, 0, springs.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
@@ -339,7 +361,7 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
 
     } else {
         
-        for (int l = 0; l < 3; l++) {
+        for (int l = 0; l < 10; l++) {
             std::fill(&G[0], &G[0] + 3*nodes.n_size, 0);
             for (int i = 0; i < springs.n_size; i++) {
                 int a = J.innerIndexPtr()[i*2 + 0];
@@ -364,10 +386,7 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
             }
             // std::cout << G.block(0, 0, 3*nodes.n_size, 1).squaredNorm() << std::endl;
 
-            // if (G.block(0, 0, 3*nodes.n_size, 1).squaredNorm() < 1e-15) {
-            //     std::cout << "break" << std::endl;
-            //     break;
-            // }
+            if (G.block(0, 0, 3*nodes.n_size, 1).lpNorm<Eigen::Infinity>() < 1e-16) break;
 
             std::fill(&H.valuePtr()[0], &H.valuePtr()[0] + 9*(nodes.n_size + 2*springs.n_size), 0);
 
@@ -424,13 +443,24 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
                 }
             }
 
-            H.leftCols(3*nodes.n_size) = MH1.leftCols(3*nodes.n_size) + h2*H.leftCols(3*nodes.n_size);
-
+            H.leftCols(3*nodes.n_size) = MH1.leftCols(3*nodes.n_size) + h2*H.leftCols(3*nodes.n_size);            
+            // H.leftCols(3*nodes.n_size) = H.leftCols(3*nodes.n_size);
+            
             Eigen::SimplicialLDLT<SparseMatrix<double>> ldlt_solver;
+            
+            // ldlt_solver.analyzePattern(H.block(0, 0, 3*nodes.n_size, 3*nodes.n_size));
+            // ldlt_solver.factorize(H.block(0, 0, 3*nodes.n_size, 3*nodes.n_size));
+            // double regularization = 1e-6;
+            // while (ldlt_solver.info() != Eigen::Success) {
+            //     std::cout << "regularized" << std::endl;
+            //     regularization *= 10;
+            //     H.leftCols(3*nodes.n_size) = H.leftCols(3*nodes.n_size) + regularization*MH1.leftCols(3*nodes.n_size);
+            //     ldlt_solver.factorize(H.block(0, 0, 3*nodes.n_size, 3*nodes.n_size));
+            // }
+            
             ldlt_solver.compute(H.block(0, 0, 3*nodes.n_size, 3*nodes.n_size));
 
             Vector<double> desc = ldlt_solver.solve(G.block(0, 0, 3*nodes.n_size, 1));
-
 
             for (int i = 0; i < nodes.n_size; i++) {
                 nodes.px[i] = nodes.px[i] - desc[3*i + 0];
@@ -449,22 +479,16 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     nodes.vy.block(0, 0, nodes.n_size, 1) = (nodes.py.block(0, 0, nodes.n_size, 1) - nodes.vy.block(0, 0, nodes.n_size, 1))/dt;
     nodes.vz.block(0, 0, nodes.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1) - nodes.vz.block(0, 0, nodes.n_size, 1))/dt;
 
-
-    if (iteration_counter%60 == 0 && i_counter++ < 60) {
+    if (iteration_counter % 60 == 0 || 1) {
         timer0 += Timer::get_timing();
 
-        std::ofstream file0;
-        file0.open ("traj1-vi20.dat", std::ios::app);
-        for (int i = 0; i < nodes.n_size; i++) {
-            file0 << nodes.px[i] << " " << nodes.py[i] << " " << nodes.pz[i] << std::endl;
-        }
-        file0 << std::endl;
-        file0.close();
-    }
-
-    if (iteration_counter > 20*60) {
-        std::cout << "timing: " << timer0/21.0 << std::endl;
-        exit(0);
+        std::ofstream file;
+        file.open (filename, std::ios::app);
+        for (int i = 0; i < nodes.n_size; i++)
+            file << nodes.px[i] << " " << nodes.py[i] << " " << nodes.pz[i] << std::endl;
+        file << std::endl;
+        // file << Timer::get_timing() << std::endl;
+        file.close();
     }
 
     // J1.topRows(nodes.n_size) = J.leftCols(springs.n_size);    
