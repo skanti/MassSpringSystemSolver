@@ -288,9 +288,9 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
 
 
     for (int i = 0; i < 10; i++) {
-        springs.dx_rhs.block(0, 0, springs.n_size, 1) = (nodes.px.block(0, 0, nodes.n_size, 1).transpose()*K.block(0, 0, springs.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
-        springs.dy_rhs.block(0, 0, springs.n_size, 1) = (nodes.py.block(0, 0, nodes.n_size, 1).transpose()*K.block(0, 0, springs.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
-        springs.dz_rhs.block(0, 0, springs.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1).transpose()*K.block(0, 0, springs.n_size, springs.n_size)*J.block(0, 0, nodes.n_size, springs.n_size)).transpose();
+        springs.dx_rhs.block(0, 0, springs.n_size, 1) = (nodes.px.block(0, 0, nodes.n_size, 1).transpose()*J.block(0, 0, nodes.n_size, springs.n_size)*K.block(0, 0, springs.n_size, springs.n_size)).transpose();
+        springs.dy_rhs.block(0, 0, springs.n_size, 1) = (nodes.py.block(0, 0, nodes.n_size, 1).transpose()*J.block(0, 0, nodes.n_size, springs.n_size)*K.block(0, 0, springs.n_size, springs.n_size)).transpose();
+        springs.dz_rhs.block(0, 0, springs.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1).transpose()*J.block(0, 0, nodes.n_size, springs.n_size)*K.block(0, 0, springs.n_size, springs.n_size)).transpose();
 
         for (int j = 0; j < springs.n_size; j++) {
             springs.d_rhs[j] = std::sqrt(springs.dx_rhs[j]*springs.dx_rhs[j] + springs.dy_rhs[j]*springs.dy_rhs[j] + springs.dz_rhs[j]*springs.dz_rhs[j]);
