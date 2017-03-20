@@ -2,7 +2,7 @@
 
 #include <cstdlib>
 #include <cassert>
-#include <eigen3/Eigen/Sparse>
+#include <Eigen/Sparse>
 
 template <typename T>
 using Vector = Eigen::Matrix<T, Eigen::Dynamic, 1>;
