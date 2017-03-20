@@ -10,7 +10,6 @@ include_directories(${EIGEN3_INCLUDE_DIRS})
 # <-
 
 set(CMAKE_CXX_COMPILER "c++")
-set(CMAKE_MAKEFILE_VERBOSE 1)
 
 # -DEIGEN_NO_DEBUG
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -fopenmp -std=c++14  -DGLEW_NO_GLU -DEIGEN_NO_DEBUG")

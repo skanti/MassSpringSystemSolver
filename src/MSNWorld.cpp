@@ -1,9 +1,9 @@
 #include "MSNWorld.h"
 #include "Engine.h"
 #include "MeshLoader.h"
-#include <eigen3/Eigen/Sparse>
 #include "MathKernels.h"
 #include "Timer.h"
+#include "Common.h"
 #include <iostream>
 #include <fstream>
 
