@@ -59,8 +59,8 @@ MSNWorld::MSNWorld() {
     K.setIdentity();
     std::fill(&K.valuePtr()[0], &K.valuePtr()[0] + N_MAX_SPRINGS, 50);
 
-    mt.seed(time(0));
-    // mt.seed(999);
+    // mt.seed(time(0));
+    mt.seed(999);
 
     f_gravity = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, -0.001f);
     fx_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
@@ -111,11 +111,12 @@ MSNWorld::MSNWorld() {
     }
     // <- 
     
-    auto does_file_exist = [](std::string filename) { std::ifstream infile(filename); return infile.good();};
-    for (int i = 0; i < (1 << 20); i++) {
-        filename = std::string("newton10-traj") + std::to_string(i) + std::string(".dat");
-        if (!does_file_exist(filename)) break;   
-    }
+    // auto does_file_exist = [](std::string filename) { std::ifstream infile(filename); return infile.good();};
+    // for (int i = 0; i < (1 << 20); i++) {
+    //     filename  = std::string("pd2-langevin0.0001-traj") + std::to_string(i) + std::string(".dat");
+    //     filename2 = std::string("pd2-langevin0.0001-timing") + std::to_string(i) + std::string(".dat");
+    //     if (!does_file_exist(filename)) break;   
+    // }
 
 }
 
@@ -132,13 +133,13 @@ MSNWorld &MSNWorld::get_instance() {
 }
 
 
-void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_frame) {
+void MSNWorld::advance(std::size_t &iteration_counter, std::string optimization_method, int n_iteration_optimization, double sigma_langevin) {
 
     double h2 = dt*dt;
 
-    // std::generate(&fx_langevin[0], &fx_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
-    // std::generate(&fy_langevin[0], &fy_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
-    // std::generate(&fz_langevin[0], &fz_langevin[0] + nodes.n_size, [&](){return 0.01*dist_normal(mt);});
+    std::generate(&fx_langevin[0], &fx_langevin[0] + nodes.n_size, [&](){return sigma_langevin*dist_normal(mt);});
+    std::generate(&fy_langevin[0], &fy_langevin[0] + nodes.n_size, [&](){return sigma_langevin*dist_normal(mt);});
+    std::generate(&fz_langevin[0], &fz_langevin[0] + nodes.n_size, [&](){return sigma_langevin*dist_normal(mt);});
 
     nodes.qx.block(0, 0, nodes.n_size, 1) = nodes.px.block(0, 0, nodes.n_size, 1) + nodes.vx.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f); 
     nodes.qy.block(0, 0, nodes.n_size, 1) = nodes.py.block(0, 0, nodes.n_size, 1) + nodes.vy.block(0, 0, nodes.n_size, 1)*dt*(1.0f - dt*0.1f);
@@ -153,10 +154,23 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     nodes.py.block(0, 0, nodes.n_size, 1) = nodes.qy.block(0, 0, nodes.n_size, 1);
     nodes.pz.block(0, 0, nodes.n_size, 1) = nodes.qz.block(0, 0, nodes.n_size, 1);
 
-    Timer::start();
-    if (0) {
+    int optimization_method1 = 0;
+    if (optimization_method == "pd")
+        optimization_method1 = 1;
+    else if (optimization_method == "newton")
+        optimization_method1 = 2;
+    else
+        exit(0);
 
-        for (int i = 0; i < 10; i++) {
+    filename  = optimization_method + std::to_string(n_iteration_optimization) + "-langevin" + std::to_string(sigma_langevin) + "-traj.dat";
+    filename2 = optimization_method + std::to_string(n_iteration_optimization) + "-langevin" + std::to_string(sigma_langevin) + "-timing.dat";
+
+    Timer::start();
+    switch(optimization_method1){
+
+    case 1:
+
+        for (int i = 0; i < n_iteration_optimization; i++) {
             springs.dx_rhs.block(0, 0, springs.n_size, 1) = (nodes.px.block(0, 0, nodes.n_size, 1).transpose()*J.block(0, 0, nodes.n_size, springs.n_size)*K.block(0, 0, springs.n_size, springs.n_size)).transpose();
             springs.dy_rhs.block(0, 0, springs.n_size, 1) = (nodes.py.block(0, 0, nodes.n_size, 1).transpose()*J.block(0, 0, nodes.n_size, springs.n_size)*K.block(0, 0, springs.n_size, springs.n_size)).transpose();
             springs.dz_rhs.block(0, 0, springs.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1).transpose()*J.block(0, 0, nodes.n_size, springs.n_size)*K.block(0, 0, springs.n_size, springs.n_size)).transpose();
@@ -184,10 +198,11 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
             // nodes.pz[0] = 0.2*std::sin(iteration_counter*5e-3);
             // nodes.pz[N_CLOTH - 1] = 0.2*std::sin(iteration_counter*5e-3);    
         }
+        break;
 
-    } else {
+    case 2:
         
-        for (int l = 0; l < 10; l++) {
+        for (int l = 0; l < n_iteration_optimization; l++) {
             std::fill(&G[0], &G[0] + 3*nodes.n_size, 0);
             for (int i = 0; i < springs.n_size; i++) {
                 int a = J.innerIndexPtr()[i*2 + 0];
@@ -297,6 +312,7 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
             // nodes.pz[0] = 0.2*std::sin(iteration_counter*5e-3);
             // nodes.pz[N_CLOTH - 1] = 0.2*std::sin(iteration_counter*5e-3);   
         }
+        break;
     }
 
     Timer::stop();
@@ -314,16 +330,21 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
     nodes.vy.block(0, 0, nodes.n_size, 1) = (nodes.py.block(0, 0, nodes.n_size, 1) - nodes.vy.block(0, 0, nodes.n_size, 1))/dt;
     nodes.vz.block(0, 0, nodes.n_size, 1) = (nodes.pz.block(0, 0, nodes.n_size, 1) - nodes.vz.block(0, 0, nodes.n_size, 1))/dt;
 
-    if (iteration_counter % 60 == 0 || 1) {
-        timer0 += Timer::get_timing();
-
+    if (iteration_counter % 8 == 0) {
+        // -> trajectory
         std::ofstream file;
         file.open (filename, std::ios::app);
         for (int i = 0; i < nodes.n_size; i++)
             file << nodes.px[i] << " " << nodes.py[i] << " " << nodes.pz[i] << std::endl;
         file << std::endl;
-        // file << Timer::get_timing() << std::endl;
         file.close();
+        // <-
+
+        // -> timing
+        file.open (filename2, std::ios::app);
+        file << Timer::get_timing() << std::endl;
+        file.close();
+        // <-
     }
 
     // J1.topRows(nodes.n_size) = J.leftCols(springs.n_size);    

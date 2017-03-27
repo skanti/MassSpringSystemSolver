@@ -8,7 +8,7 @@ MESSAGE( STATUS "EIGEN_DIR:         " ${EIGEN3_INCLUDE_DIR})
 set(CMAKE_CXX_COMPILER "c++")
 
 # -DEIGEN_NO_DEBUG
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -fopenmp -std=c++14  -DGLEW_NO_GLU")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -fopenmp -std=c++14  -DGLEW_NO_GLU -DEIGEN_NO_DEBUG")
 
 set(SOURCE_FILES_CPP
         src/main.cpp

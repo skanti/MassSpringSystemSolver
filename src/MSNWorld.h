@@ -6,6 +6,7 @@
 #include "Nodes.h"
 #include "Springs.h"
 #include "Common.h"
+#include <string>
 
 class MSNWorld {
 public:
@@ -21,11 +22,11 @@ public:
 
     void load_file(std::string file);
 
-    void advance(std::size_t &iteration_counter, long long int ms_per_frame);
+    void advance(std::size_t &iteration_counter, std::string optimization_method, int n_iteration_optimization, double sigma_langevin);
 
 
 private:
-    std::string filename;
+    std::string filename, filename2;
     int i_counter;
     int flag;
     double timer0;
