@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 project(MSN CXX)
 
-find_package(Eigen3 3.3.3 REQUIRED)
+find_package(Eigen3 3.3.2 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
 MESSAGE( STATUS "EIGEN_DIR:         " ${EIGEN3_INCLUDE_DIR})
 
