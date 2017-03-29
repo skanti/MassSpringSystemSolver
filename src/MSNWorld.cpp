@@ -7,9 +7,9 @@
 #include <fstream>
 
 const double dt = 0.2;
-#define N_MAX_NODES 5000
-#define N_MAX_SPRINGS 30000
-#define N_CLOTH 40
+#define N_MAX_NODES 10
+#define N_MAX_SPRINGS 20
+#define N_CLOTH 3
 
 MSNWorld::MSNWorld() {
     flag = 1;
@@ -37,7 +37,7 @@ MSNWorld::MSNWorld() {
     K.resize(N_MAX_SPRINGS, N_MAX_SPRINGS);
     MH1.reserve(3*N_MAX_NODES);
     MH1.resize(3*N_MAX_NODES, 3*N_MAX_NODES);
-    H.reserve(3*(N_MAX_NODES + 2*N_MAX_SPRINGS));
+    H.reserve(9*(N_MAX_NODES + 2*N_MAX_SPRINGS));
     H.resize(3*N_MAX_NODES, 3*N_MAX_NODES);
     G.resize(3*N_MAX_NODES);
     px_tmp.resize(2);
