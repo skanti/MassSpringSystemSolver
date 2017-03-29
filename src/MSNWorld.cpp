@@ -93,7 +93,8 @@ MSNWorld::MSNWorld() {
             }
         }
     }
-    // <-    
+	std::fill(&H.outerIndexPtr()[3*nodes.n_size + 1], &H.outerIndexPtr()[3*N_MAX_NODES + 1], H.outerIndexPtr()[3*nodes.n_size]);
+	// <-    
     
     // -> create spring hashmap
     for (int i = 0, k = 0; i < nodes.n_size; i++) {
@@ -283,9 +284,9 @@ void MSNWorld::advance(std::size_t &iteration_counter, std::string optimization_
                     }
                 }
             }
-
+			
             H.leftCols(3*nodes.n_size) = MH1.leftCols(3*nodes.n_size) + h2*H.leftCols(3*nodes.n_size);            
-            // H.leftCols(3*nodes.n_size) = H.leftCols(3*nodes.n_size);
+            //  H.leftCols(3*nodes.n_size) = H.leftCols(3*nodes.n_size);
             
             Eigen::SimplicialLDLT<SparseMatrix<double>> ldlt_solver;
             
