@@ -1,5 +1,8 @@
 # hidden files
 .*
 
+# backup files
+*~
+
 # build folder
 build
