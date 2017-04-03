@@ -5,6 +5,7 @@
 #include "Common.h"
 #include <iostream>
 #include <fstream>
+#include <string>
 
 const double dt = 0.2;
 #define N_MAX_NODES 5000
@@ -59,8 +60,8 @@ MSNWorld::MSNWorld() {
     K.setIdentity();
     std::fill(&K.valuePtr()[0], &K.valuePtr()[0] + N_MAX_SPRINGS, 50);
 
-    mt.seed(time(0));
-    // mt.seed(999);
+    // mt.seed(time(0));
+     mt.seed(999);
 
     f_gravity = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, -0.001f);
     fx_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
@@ -162,9 +163,11 @@ void MSNWorld::advance(std::size_t &iteration_counter, std::string optimization_
         optimization_method1 = 2;
     else
         exit(0);
-
-    filename  = optimization_method + std::to_string(n_iteration_optimization) + "-langevin" + std::to_string(sigma_langevin) + "-traj.dat";
-    filename2 = optimization_method + std::to_string(n_iteration_optimization) + "-langevin" + std::to_string(sigma_langevin) + "-timing.dat";
+	
+	char buf[11];
+	std::sprintf(buf, "%1.8f", sigma_langevin);
+    filename  = optimization_method + std::to_string(n_iteration_optimization) + "-langevin" + std::string(buf) + "-traj.dat";
+    filename2 = optimization_method + std::to_string(n_iteration_optimization) + "-langevin" + std::string(buf) + "-timing.dat";
 
     Timer::start();
     switch(optimization_method1){
