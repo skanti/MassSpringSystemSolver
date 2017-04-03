@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
     MSNWorld::init();
     for (std::size_t j = 0; j < 40*60; j++) {
         // std::cout << (j + 1) <<  "\r";
-        std::cout << (j + 1) <<  std::endl;
+        //std::cout << (j + 1) <<  std::endl;
     	MSNWorld::get_instance().advance(j, optimization_method, n_iteration_optimization, sigma_langevin);
         // fflush(stdout);
     }
