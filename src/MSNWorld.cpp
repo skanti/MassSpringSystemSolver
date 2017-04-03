@@ -7,9 +7,9 @@
 #include <fstream>
 
 const double dt = 0.2;
-#define N_MAX_NODES 10
-#define N_MAX_SPRINGS 20
-#define N_CLOTH 3
+#define N_MAX_NODES 5000
+#define N_MAX_SPRINGS 20000
+#define N_CLOTH 50
 
 MSNWorld::MSNWorld() {
     flag = 1;
@@ -59,8 +59,8 @@ MSNWorld::MSNWorld() {
     K.setIdentity();
     std::fill(&K.valuePtr()[0], &K.valuePtr()[0] + N_MAX_SPRINGS, 50);
 
-    // mt.seed(time(0));
-    mt.seed(999);
+    mt.seed(time(0));
+    // mt.seed(999);
 
     f_gravity = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, -0.001f);
     fx_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
