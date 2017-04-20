@@ -13,20 +13,19 @@ public:
     MSNWorld();
 
     static void init();
-
+	
     static void kill();
 
     static MSNWorld &get_instance();
 
-    void draw();
+	void init_filename_and_seed_and_method(std::string optimization_method, int n_iteration_optimization, double sigma_langevin, int i_run);
 
-    void load_file(std::string file);
-
-    void advance(std::size_t &iteration_counter, std::string optimization_method, int n_iteration_optimization, double sigma_langevin);
+    void advance(std::size_t &iteration_counter, int n_iteration_optimization, double sigma_langevin);
 
 
 private:
-    std::string filename, filename2;
+    int optimization_method1;
+	std::string filename, filename2;
     int i_counter;
     int flag;
     double timer0;

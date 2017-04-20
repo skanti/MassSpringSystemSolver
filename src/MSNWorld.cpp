@@ -61,7 +61,7 @@ MSNWorld::MSNWorld() {
     std::fill(&K.valuePtr()[0], &K.valuePtr()[0] + N_MAX_SPRINGS, 50);
 
     // mt.seed(time(0));
-     mt.seed(999);
+    // mt.seed(999);
 
     f_gravity = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, -0.001f);
     fx_langevin = Eigen::MatrixXd::Constant(N_MAX_NODES, 1, 0);
@@ -113,13 +113,7 @@ MSNWorld::MSNWorld() {
     }
     // <- 
     
-    // auto does_file_exist = [](std::string filename) { std::ifstream infile(filename); return infile.good();};
-    // for (int i = 0; i < (1 << 20); i++) {
-    //     filename  = std::string("pd2-langevin0.0001-traj") + std::to_string(i) + std::string(".dat");
-    //     filename2 = std::string("pd2-langevin0.0001-timing") + std::to_string(i) + std::string(".dat");
-    //     if (!does_file_exist(filename)) break;   
-    // }
-
+    
 }
 
 void MSNWorld::init() {
@@ -135,7 +129,24 @@ MSNWorld &MSNWorld::get_instance() {
 }
 
 
-void MSNWorld::advance(std::size_t &iteration_counter, std::string optimization_method, int n_iteration_optimization, double sigma_langevin) {
+void MSNWorld::init_filename_and_seed_and_method(std::string optimization_method, int n_iteration_optimization, double sigma_langevin, int i_run) {
+	mt.seed(time(0) + i_run);
+	
+	if (optimization_method == "pd")
+	    optimization_method1 = 1;
+	else if (optimization_method == "newton")
+	    optimization_method1 = 2;
+	else
+	    exit(0);
+	
+	char buf[12];
+	std::sprintf(buf, "%1.8f", sigma_langevin);
+	std::string filename0  = "/cluster/scratch/armena/" + optimization_method + std::to_string(n_iteration_optimization) + "-langevin" + std::string(buf);
+	filename  = filename0 + "-traj-irun" + std::to_string(i_run) + ".dat";
+	filename2 = filename0 + "-timing-irun" + std::to_string(i_run) + ".dat";
+}
+
+void MSNWorld::advance(std::size_t &iteration_counter, int n_iteration_optimization, double sigma_langevin) {
 
     double h2 = dt*dt;
 
@@ -155,20 +166,7 @@ void MSNWorld::advance(std::size_t &iteration_counter, std::string optimization_
     nodes.px.block(0, 0, nodes.n_size, 1) = nodes.qx.block(0, 0, nodes.n_size, 1); 
     nodes.py.block(0, 0, nodes.n_size, 1) = nodes.qy.block(0, 0, nodes.n_size, 1);
     nodes.pz.block(0, 0, nodes.n_size, 1) = nodes.qz.block(0, 0, nodes.n_size, 1);
-
-    int optimization_method1 = 0;
-    if (optimization_method == "pd")
-        optimization_method1 = 1;
-    else if (optimization_method == "newton")
-        optimization_method1 = 2;
-    else
-        exit(0);
 	
-	char buf[11];
-	std::sprintf(buf, "%1.8f", sigma_langevin);
-    filename  = optimization_method + std::to_string(n_iteration_optimization) + "-langevin" + std::string(buf) + "-traj.dat";
-    filename2 = optimization_method + std::to_string(n_iteration_optimization) + "-langevin" + std::string(buf) + "-timing.dat";
-
     Timer::start();
     switch(optimization_method1){
 
@@ -198,9 +196,6 @@ void MSNWorld::advance(std::size_t &iteration_counter, std::string optimization_
             nodes.px.block(0, 0, nodes.n_size, 1) = chol.solve(nodes.px_rhs.block(0, 0, nodes.n_size, 1));
             nodes.py.block(0, 0, nodes.n_size, 1) = chol.solve(nodes.py_rhs.block(0, 0, nodes.n_size, 1));
             nodes.pz.block(0, 0, nodes.n_size, 1) = chol.solve(nodes.pz_rhs.block(0, 0, nodes.n_size, 1));
-
-            // nodes.pz[0] = 0.2*std::sin(iteration_counter*5e-3);
-            // nodes.pz[N_CLOTH - 1] = 0.2*std::sin(iteration_counter*5e-3);    
         }
         break;
 
@@ -317,6 +312,10 @@ void MSNWorld::advance(std::size_t &iteration_counter, std::string optimization_
             // nodes.pz[N_CLOTH - 1] = 0.2*std::sin(iteration_counter*5e-3);   
         }
         break;
+
+	default:
+		exit(0);
+		break;
     }
 
     Timer::stop();
