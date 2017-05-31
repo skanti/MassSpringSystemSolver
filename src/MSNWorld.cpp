@@ -1,9 +1,9 @@
+#include "Common.h"
 #include "MSNWorld.h"
-#include "Engine.h"
+#include "Visualization.h"
 #include "MeshLoader.h"
 #include "MathKernels.h"
 #include "Timer.h"
-#include "Common.h"
 #include <iostream>
 #include <fstream>
 
@@ -12,7 +12,7 @@ const double dt = 0.2;
 #define N_MAX_SPRINGS 10000
 #define N_CLOTH 20
 
-MSNWorld::MSNWorld() : World() {
+void MSNWorld::init() {
     flag = 1;
     is_floating = 0;
     i_counter = 0;
@@ -114,24 +114,20 @@ MSNWorld::MSNWorld() : World() {
     init_drawable();
 }
 
-void MSNWorld::init() {
-    if (!msn2d_world) msn2d_world = std::unique_ptr<MSNWorld>(new MSNWorld());
-}
+void MSNWorld::term() {
 
-MSNWorld &MSNWorld::get_instance() {
-    return *msn2d_world;
 }
-
 
 void MSNWorld::init_shape() {
     glm::mat4 trans_mat = glm::translate(glm::mat4(1), glm::vec3(0, 0, 0));
     vao.model_matrix = trans_mat*glm::scale(glm::mat4(1), glm::vec3(zoom));
-    vao.shape = ga::Shape::make_sphere(0.01f);
+    vao.shape = gf::Shape::make_sphere(0.01f);
 }
 
 void MSNWorld::init_shader() {
-    std::string dir = "/home/amon/grive/development/MassSpringNetwork/src/glsl";
-    ga::Visualization::load_shaders(mass_spring_program, dir, "MassSpringVS3D.glsl", "MassSpringFS3D.glsl", "", "", "");
+    std::string dir = std::string(MSN_SRC_PATH) + "/glsl/";
+	std::cout << dir << std::endl;
+    gf::Visualization::load_shaders_and_link_to_program(mass_spring_program, dir + "MassSpringVS3D.glsl", dir + "MassSpringFS3D.glsl", "", "", "");
 }
 
 void MSNWorld::init_instances() {
@@ -151,8 +147,8 @@ void MSNWorld::init_drawable() {
     glUniform1f(mass_spring_program.uniform("l_base"), vao.shape.l_base);
 
     glUniformMatrix4fv(mass_spring_program.uniform("ModelMatrix"), 1, GL_FALSE, &vao.model_matrix[0][0]);
-    glUniformMatrix4fv(mass_spring_program.uniform("ViewMatrix"), 1, GL_FALSE, &ga::Visualization::view_window[0][0]);
-    glUniformMatrix4fv(mass_spring_program.uniform("ProjectionMatrix"), 1, GL_FALSE, &ga::Visualization::projection_window[0][0]);
+    glUniformMatrix4fv(mass_spring_program.uniform("ViewMatrix"), 1, GL_FALSE, &gf::Visualization::view_window[0][0]);
+    glUniformMatrix4fv(mass_spring_program.uniform("ProjectionMatrix"), 1, GL_FALSE, &gf::Visualization::projection_window[0][0]);
     float nodes_color_alpha = 1.0;
     glUniform1f(mass_spring_program.uniform("nodes_color_alpha"), nodes_color_alpha);
     float springs_color[] = {0.8f, 0.2f, 0.2f, 0.8f};
@@ -310,10 +306,7 @@ void MSNWorld::advance(std::size_t &iteration_counter, long long int ms_per_fram
         nodes.px.block(0, 0, nodes.n_size, 1) = chol.solve(nodes.px_rhs.block(0, 0, nodes.n_size, 1));
         nodes.py.block(0, 0, nodes.n_size, 1) = chol.solve(nodes.py_rhs.block(0, 0, nodes.n_size, 1));
         nodes.pz.block(0, 0, nodes.n_size, 1) = chol.solve(nodes.pz_rhs.block(0, 0, nodes.n_size, 1));
-
-
     }
-
     
     nodes.px[0] = px_tmp[0];
     nodes.py[0] = py_tmp[0];
@@ -342,21 +335,16 @@ void MSNWorld::delete_nodes(float px, float py) {
 
 }
 
-void MSNWorld::mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
-
-}
-
-
 void MSNWorld::keyboard_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_A && action == GLFW_PRESS) {
-        get_instance().spawn_nodes(0, 0);
+        spawn_nodes(0, 0);
     } else if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
-        get_instance().is_floating = !get_instance().is_floating;
+        is_floating = !is_floating;
     } else if (key == GLFW_KEY_DOWN && action == GLFW_PRESS) {
-        get_instance().zoom -= 2e-2;
-        get_instance().vao.model_matrix = glm::scale(glm::mat4(1), glm::vec3(get_instance().zoom));
+        zoom -= 2e-2;
+        vao.model_matrix = glm::scale(glm::mat4(1), glm::vec3(zoom));
     } else if (key == GLFW_KEY_UP && action == GLFW_PRESS) {
-        get_instance().zoom += 2e-2;
-        get_instance().vao.model_matrix = glm::scale(glm::mat4(1), glm::vec3(get_instance().zoom));
+        zoom += 2e-2;
+        vao.model_matrix = glm::scale(glm::mat4(1), glm::vec3(zoom));
     }
 }

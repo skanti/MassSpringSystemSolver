@@ -1,3 +1,12 @@
-scratch/build/*
-build/*
+# hidden files
 .*
+
+# folders
+build
+cmake 
+
+# generated stuff
+Common.h
+
+# others
+INSTALL_INFO

@@ -1,11 +1,19 @@
 #pragma once
 
+#define MSN_SRC_PATH "@MSN_SRC_PATH@"
+
 #include <cstdlib>
 #include <cassert>
 #include <Eigen/Sparse>
 
 template <typename T>
 using Vector = Eigen::Matrix<T, Eigen::Dynamic, 1>;
+
+template <typename T>
+using Matrix = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
+
+template <typename T>
+using MatrixRef = Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>>;
 
 template <typename T>
 using SparseMatrix = Eigen::SparseMatrix<T>;
@@ -15,3 +23,4 @@ using SparseMatrixCSR = Eigen::SparseMatrix<T, Eigen::RowMajor, int>;
 
 template <typename T>
 using Triplet = Eigen::Triplet<T>;
+

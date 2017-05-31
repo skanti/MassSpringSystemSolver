@@ -1,5 +1,6 @@
 #pragma once 
 
+#include "Common.h"
 #include <random>
 #include <memory>
 #include <unordered_map>
@@ -7,22 +8,17 @@
 #include "Nodes.h"
 #include "Springs.h"
 #include "World.h"
-#include "ImageManager.h"
-#include "Common.h"
 
-class MSNWorld : public ga::World {
+class MSNWorld : public gf::World {
 public:
-    MSNWorld();
 
-    static void init();
+    void init();
 
-    static MSNWorld &get_instance();
+	void term();
 
     void draw();
 
-    static void mouse_button_callback(GLFWwindow *window, int button, int action, int mods);
-
-    static void keyboard_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
+    void keyboard_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
     void load_file(std::string file);
 
@@ -52,7 +48,7 @@ private:
     std::uniform_int_distribution<int> dist_int_uniform;
     int is_floating;
     double zoom;
-    ga::GLSLProgram mass_spring_program;
+    gf::GLSLProgram mass_spring_program;
     Eigen::SimplicialLDLT<SparseMatrix<double>> chol;
     Nodes<double> nodes;
     Springs<double> springs;
@@ -74,6 +70,5 @@ private:
     Vector<double> fz_langevin;
     Vector<double> px_tmp;
     Vector<double> py_tmp;
-    ga::VAOMassSpring3D vao;
-    static std::unique_ptr<MSNWorld> msn2d_world;
+    gf::VAOMassSpring3D vao;
 };
