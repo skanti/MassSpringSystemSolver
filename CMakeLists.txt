@@ -35,7 +35,7 @@ include_directories(${EIGEN3_INCLUDE_DIR})
 set(CMAKE_CXX_COMPILER c++)
 
 # -DEIGEN_NO_DEBUG
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -fopenmp -std=c++14 -DGLEW_NO_GLU -DGLM_ENABLE_EXPERIMENTAL=1 -Ofast")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -fopenmp -std=c++14 -DGLEW_NO_GLU -DGLM_ENABLE_EXPERIMENTAL=1")
 
 set(SOURCE_FILES_CPP
         src/main.cpp
@@ -58,5 +58,5 @@ configure_file (
 
 
 add_executable(msn_example ${SOURCE_FILES_CPP} ${SOURCE_FILES_H})
-target_link_libraries(msn_example ${GameFramework_LIBRARIES} GLEW glfw GL png freetype)
+target_link_libraries(msn_example gameframework GLEW glfw GL png freetype)
 

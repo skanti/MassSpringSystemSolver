@@ -6,8 +6,18 @@
 #include <cassert>
 #include <Eigen/Sparse>
 
+
 template <typename T>
 using Vector = Eigen::Matrix<T, Eigen::Dynamic, 1>;
+
+template <typename T>
+using Vector3 = Eigen::Matrix<T, 3, 1>;
+
+template <typename T>
+using VectorRef = Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, 1>>;
+
+template <typename T>
+using Vector3Ref = Eigen::Ref<const Eigen::Matrix<T, 3, 1>>;
 
 template <typename T>
 using Matrix = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>;
@@ -24,3 +34,12 @@ using SparseMatrixCSR = Eigen::SparseMatrix<T, Eigen::RowMajor, int>;
 template <typename T>
 using Triplet = Eigen::Triplet<T>;
 
+template<typename T>
+Eigen::Ref<Vector<T>> Vector2Matrix(Vector<T> &A, int n, int m) {
+	return Eigen::Map<Matrix<T>, Eigen::ColMajor>(&A(0), n, m);
+}
+
+template<typename T>
+Eigen::Ref<Matrix<T>> Matrix2Vector(Matrix<T> &A, int n) {
+	return Eigen::Map<Vector<T>, Eigen::ColMajor>(&A(0, 0), n, 1);
+}

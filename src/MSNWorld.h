@@ -4,10 +4,10 @@
 #include <random>
 #include <memory>
 #include <unordered_map>
-#include "Visualization.h"
+#include "gf/Visualization.h"
 #include "Nodes.h"
 #include "Springs.h"
-#include "World.h"
+#include "gf/World.h"
 
 class MSNWorld : public gf::World {
 public:
@@ -61,14 +61,9 @@ private:
     SparseMatrix<double> Qinv;
     SparseMatrix<double> M;
     SparseMatrix<double> K;
-    SparseMatrix<double> MH1;
-    SparseMatrix<double> H;
-    Vector<double> G;
-    Vector<double> f_gravity;
-    Vector<double> fx_langevin;
-    Vector<double> fy_langevin;
-    Vector<double> fz_langevin;
-    Vector<double> px_tmp;
-    Vector<double> py_tmp;
+    Matrix<double> f_gravity;
+    Matrix<double> f_langevin;
+    Vector3<double> p0_tmp;
+    Vector3<double> p1_tmp;
     gf::VAOMassSpring3D vao;
 };
